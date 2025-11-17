@@ -17,7 +17,7 @@ stabledifiuson/
 ```powershell
 cd sd-backend
 .\install.ps1          # Prvý krát - nainštaluje závislosti
-.\start.ps1            # Spustí server ty Kokso
+.\start.ps1            # Spustí server ty ooooo
 ```
 
 **Prvé spustenie:**

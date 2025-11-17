@@ -1,0 +1,70 @@
+# Docker ignore file for Stable Diffusion project
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+sd-app/dist/
+sd-app/dist-ssr/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Models and cache (veľké súbory - sťahujú sa pri behu)
+*.safetensors
+*.ckpt
+*.pth
+*.bin
+
+# LoRA models (budú v volume)
+sd-backend/lora_models/*.safetensors
+
+# Generated images
+sd-app/public/generated/
+*.png
+*.jpg
+*.jpeg
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Documentation
+*.md
+!README.md
+
+# Other folders
+stablediffioson/
+.azure/

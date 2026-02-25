@@ -29,7 +29,7 @@ const removeImage = () => {
 
 const generateCharacter = async () => {
   if (!characterPrompt.value.trim()) {
-    alert('Prosím zadajte popis postavy!')
+    alert('Please enter a character description!')
     return
   }
 
@@ -82,7 +82,7 @@ const generateCharacter = async () => {
     
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.error || 'Chyba pri generovaní')
+      throw new Error(errorData.error || 'Error during generation')
     }
     
     const data = await response.json()
@@ -111,7 +111,7 @@ const generateCharacter = async () => {
     
   } catch (error) {
     console.error('❌ Chyba pri generovaní characteru:', error)
-    alert(`Chyba pri generovaní characteru: ${error.message}`)
+    alert(`Error generating character: ${error.message}`)
   } finally {
     isGenerating.value = false
   }
@@ -124,19 +124,19 @@ const generateCharacter = async () => {
     
     <!-- Text input pre popis postavy -->
     <div class="form-group">
-      <label>Popis postavy (izometrický štýl)</label>
+      <label>Character description (isometric style)</label>
       <textarea
         v-model="characterPrompt"
-        placeholder="Napr: medieval knight, warrior woman, elf archer, orc warrior, mage with staff..."
+        placeholder="E.g.: medieval knight, warrior woman, elf archer, orc warrior, mage with staff..."
         rows="4"
         :disabled="isGenerating"
       ></textarea>
-      <small class="hint">💡 Tip: Opíšte postavičku jednoducho - automaticky sa vygeneruje v izometrickom pixel art štýle vhodnom pre hru.</small>
+      <small class="hint">💡 Tip: Describe the character simply - it will be automatically generated in isometric pixel art style suitable for the game.</small>
     </div>
     
     <!-- Image upload pre referenčný obrázok -->
     <div class="form-group">
-      <label>Referenčný obrázok (voliteľné)</label>
+      <label>Reference image (optional)</label>
       
       <div v-if="!referenceImageUrl" class="upload-area">
         <input
@@ -147,7 +147,7 @@ const generateCharacter = async () => {
           id="character-image-upload"
         />
         <label for="character-image-upload" class="upload-label">
-          📁 Nahrať obrázok
+          📁 Upload image
         </label>
       </div>
       
@@ -159,15 +159,15 @@ const generateCharacter = async () => {
     
     <!-- Seed -->
     <div class="form-group">
-      <label>🎲 Seed (reprodukovateľnosť)</label>
+      <label>🎲 Seed (reproducibility)</label>
       <input
         type="text"
         v-model="seed"
-        placeholder="Prázdne = náhodný seed"
+        placeholder="Empty = random seed"
         :disabled="isGenerating"
         class="seed-input"
       />
-      <small class="hint">Rovnaký seed + prompt = rovnaké postavy vo všetkých smeroch</small>
+      <small class="hint">Same seed + prompt = same characters in all directions</small>
     </div>
     
     <!-- Tlačidlo generovať -->
@@ -176,13 +176,13 @@ const generateCharacter = async () => {
       :disabled="isGenerating || !characterPrompt.trim()"
       class="generate-btn"
     >
-      <span v-if="!isGenerating">🎨 Generovať Character</span>
-      <span v-else>⏳ Generujem...</span>
+      <span v-if="!isGenerating">🎨 Generate Character</span>
+      <span v-else>⏳ Generating...</span>
     </button>
     
     <!-- Info text -->
     <div class="info-box">
-      <p><strong>💡 Info:</strong> Vygeneruje sa sada 4 izometrických sprite-ov postavy z rôznych smerov (sever, juh, východ, západ) v pixel art štýle pre izometrické hry.</p>
+      <p><strong>💡 Info:</strong> A set of 4 isometric character sprites will be generated from different directions (north, south, east, west) in pixel art style for isometric games.</p>
     </div>
   </div>
 </template>

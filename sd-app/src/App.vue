@@ -304,7 +304,7 @@ const handlePlaceOnBoard = (image) => {
     if (!resourceCheck.hasEnough) {
       // Zobraz modal s chýbajúcimi resources
       insufficientResourcesData.value = {
-        buildingName: image.buildingData.buildingName || 'Budova',
+        buildingName: image.buildingData.buildingName || 'Building',
         missingBuildResources: resourceCheck.missingBuild,
         missingOperationalResources: resourceCheck.missingOperational
       }
@@ -423,7 +423,7 @@ const handleCellSelected = ({ row, col }) => {
         if (!resourceCheck.hasEnough) {
           // Zobraz modal s chýbajúcimi resources
           insufficientResourcesData.value = {
-            buildingName: selectedImage.buildingData.buildingName || 'Budova',
+            buildingName: selectedImage.buildingData.buildingName || 'Building',
             missingBuildResources: resourceCheck.missingBuild,
             missingOperationalResources: resourceCheck.missingOperational
           }
@@ -656,7 +656,7 @@ const handleLoadProject = (projectData) => {
     // Zapni loading a batch mode
     isLoading.value = true
     loadingProgress.value = 0
-    loadingStatus.value = `Načítavam mapu (0/${totalObjects})...`
+    loadingStatus.value = `Loading map (0/${totalObjects})...`
     
     // Zapni batch loading mode - preskočí tiene a osoby
     if (typeof canvasRef.value.startBatchLoading === 'function') {
@@ -716,14 +716,14 @@ const handleLoadProject = (projectData) => {
       
       currentIndex = batchEnd
       loadingProgress.value = Math.round((currentIndex / totalObjects) * 100)
-      loadingStatus.value = `Načítavam mapu (${currentIndex}/${totalObjects})...`
+      loadingStatus.value = `Loading map (${currentIndex}/${totalObjects})...`
       
       if (currentIndex < totalObjects) {
         // Načítaj ďalšiu dávku v nasledujúcom frame
         requestAnimationFrame(loadBatch)
       } else {
         // Všetky objekty načítané - teraz vykonaj odložené operácie
-        loadingStatus.value = 'Finalizujem tiene a postavy...'
+        loadingStatus.value = 'Finalizing shadows and characters...'
         
         // Ukonči batch loading - vykoná tiene a osoby
         setTimeout(() => {
@@ -734,7 +734,7 @@ const handleLoadProject = (projectData) => {
           setTimeout(() => {
             isLoading.value = false
             loadingProgress.value = 100
-            loadingStatus.value = 'Hotovo!'
+            loadingStatus.value = 'Done!'
             console.log(`✅ Načítaných ${successCount}/${totalObjects} objektov na šachovnici`)
             
             // Po dokončení načítania, aktualizuj canvas mapu
@@ -888,6 +888,12 @@ const handleCommandCenterSelected = (selectedImageId) => {
 const handleModeChanged = (mode) => {
   viewMode.value = mode
   console.log('🔄 App.vue: Režim zmenený na:', mode)
+}
+
+const handleEffectChanged = (effectName) => {
+  if (canvasRef.value && canvasRef.value.applyEffect) {
+    canvasRef.value.applyEffect(effectName)
+  }
 }
 
 // Funkcia na kontrolu dostupnosti resources pre stavbu a prevádzku
@@ -1137,6 +1143,7 @@ const handleCanvasUpdated = () => {
         @update-resources="handleUpdateResources"
         @update-events="gameEvents = $event"
         @mode-changed="handleModeChanged"
+        @effect-changed="handleEffectChanged"
       />
     </header>
     
@@ -1244,7 +1251,7 @@ const handleCanvasUpdated = () => {
     <!-- Insufficient Resources Modal -->
     <Modal 
       v-if="showInsufficientResourcesModal" 
-      title="⚠️ Nedostatok resources"
+      title="⚠️ Insufficient Resources"
       @close="showInsufficientResourcesModal = false"
     >
       <div class="insufficient-resources-content">
@@ -1253,7 +1260,7 @@ const handleCanvasUpdated = () => {
         <!-- Chýbajúce resources na stavbu -->
         <div v-if="insufficientResourcesData.missingBuildResources.length > 0" class="missing-section">
           <p class="warning-text">
-            🔨 Nemôžete postaviť túto budovu, pretože nemáte dostatok resources potrebných na stavbu:
+            🔨 You cannot build this building because you don't have enough resources required for construction:
           </p>
           <div class="missing-resources-list">
             <div 
@@ -1263,9 +1270,9 @@ const handleCanvasUpdated = () => {
             >
               <span class="resource-name">📦 {{ resource.name }}</span>
               <span class="resource-amounts">
-                <span class="needed">✏️ Potrebné: {{ resource.needed }}</span>
-                <span class="available">✅ Dostupné: {{ resource.available }}</span>
-                <span class="deficit">❌ Chýba: {{ resource.needed - resource.available }}</span>
+                <span class="needed">✏️ Required: {{ resource.needed }}</span>
+                <span class="available">✅ Available: {{ resource.available }}</span>
+                <span class="deficit">❌ Missing: {{ resource.needed - resource.available }}</span>
               </span>
             </div>
           </div>
@@ -1274,7 +1281,7 @@ const handleCanvasUpdated = () => {
         <!-- Chýbajúce resources na prevádzku -->
         <div v-if="insufficientResourcesData.missingOperationalResources.length > 0" class="missing-section">
           <p class="warning-text">
-            ⚙️ Nemôžete postaviť túto budovu, pretože nemáte dostatok resources potrebných na prevádzku:
+            ⚙️ You cannot build this building because you don't have enough resources required for operation:
           </p>
           <div class="missing-resources-list">
             <div 
@@ -1284,9 +1291,9 @@ const handleCanvasUpdated = () => {
             >
               <span class="resource-name">📦 {{ resource.name }}</span>
               <span class="resource-amounts">
-                <span class="needed">✏️ Potrebné: {{ resource.needed }}</span>
-                <span class="available">✅ Dostupné: {{ resource.available }}</span>
-                <span class="deficit">❌ Chýba: {{ resource.needed - resource.available }}</span>
+                <span class="needed">✏️ Required: {{ resource.needed }}</span>
+                <span class="available">✅ Available: {{ resource.available }}</span>
+                <span class="deficit">❌ Missing: {{ resource.needed - resource.available }}</span>
               </span>
             </div>
           </div>

@@ -144,7 +144,7 @@ const handleImageUpload = (event) => {
   const file = event.target.files[0]
   if (file) {
     if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      error.value = 'Obrázok je príliš veľký (max 10MB)'
+      error.value = 'Image is too large (max 10MB)'
       return
     }
     
@@ -179,7 +179,7 @@ const generateImage = async () => {
   
   // Kontroluj prompt
   if (!prompt.value.trim()) {
-    error.value = 'Zadajte prosím popis (prompt)'
+    error.value = 'Please enter a description (prompt)'
     return
   }
 
@@ -230,7 +230,7 @@ const generateImage = async () => {
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.error || 'Chyba pri generovaní obrázka')
+      throw new Error(errorData.error || 'Error generating image')
     }
 
     const data = await response.json()
@@ -327,9 +327,9 @@ const generateImage = async () => {
   // using the ❌ Odstrániť button in the UI.
   } catch (err) {
     if (err.message.includes('Failed to fetch')) {
-      error.value = `Nemôžem sa pripojiť k serveru. Uistite sa, že backend beží na ${API_BASE_URL}`
+      error.value = `Cannot connect to server. Make sure the backend is running at ${API_BASE_URL}`
     } else {
-      error.value = err.message || 'Neznáma chyba'
+      error.value = err.message || 'Unknown error'
     }
   } finally {
     isGenerating.value = false
@@ -352,7 +352,7 @@ const removeBackgroundFromImage = async (imageData) => {
 
   if (!response.ok) {
     const errorData = await response.json()
-    throw new Error(errorData.error || 'Chyba pri odstraňovaní pozadia')
+    throw new Error(errorData.error || 'Error removing background')
   }
 
   const data = await response.json()
@@ -362,7 +362,7 @@ const removeBackgroundFromImage = async (imageData) => {
 // Odstráň čierne pozadie (manuálne tlačidlo)
 const removeBackground = async () => {
   if (!lastGeneratedImage.value) {
-    error.value = 'Najprv vygenerujte obrázok'
+    error.value = 'Generate an image first'
     return
   }
 
@@ -384,7 +384,7 @@ const removeBackground = async () => {
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.error || 'Chyba pri odstraňovaní pozadia')
+      throw new Error(errorData.error || 'Error removing background')
     }
 
     const data = await response.json()
@@ -393,7 +393,7 @@ const removeBackground = async () => {
       id: Date.now().toString(),
       url: data.image,
       bitmap: null, // Bude vytvorená nižšie
-      prompt: 'Odstránené čierne pozadie',
+      prompt: 'Black background removed',
       negativePrompt: '',
       timestamp: new Date(),
     }
@@ -425,7 +425,7 @@ const removeBackground = async () => {
 
     emit('image-generated', cleanedImage, templateCellsX.value, templateCellsY.value)
   } catch (err) {
-    error.value = err.message || 'Chyba pri odstraňovaní pozadia'
+    error.value = err.message || 'Error removing background'
   } finally {
     isRemovingBackground.value = false
   }
@@ -434,7 +434,7 @@ const removeBackground = async () => {
 // Zmena farebného odtieňa
 const adjustHue = async () => {
   if (!lastGeneratedImage.value) {
-    error.value = 'Najprv vygenerujte obrázok'
+    error.value = 'Generate an image first'
     return
   }
 
@@ -455,7 +455,7 @@ const adjustHue = async () => {
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.error || 'Chyba pri zmene odtieňa')
+      throw new Error(errorData.error || 'Error adjusting hue')
     }
 
     const data = await response.json()
@@ -464,7 +464,7 @@ const adjustHue = async () => {
       id: Date.now().toString(),
       url: data.image,
       bitmap: null, // Bude vytvorená nižšie
-      prompt: `Zmenený odtieň (${hueShift.value}°)`,
+      prompt: `Hue adjusted (${hueShift.value}°)`,
       negativePrompt: '',
       timestamp: new Date(),
     }
@@ -496,7 +496,7 @@ const adjustHue = async () => {
 
     emit('image-generated', adjustedImage, templateCellsX.value, templateCellsY.value)
   } catch (err) {
-    error.value = err.message || 'Chyba pri zmene odtieňa'
+    error.value = err.message || 'Error adjusting hue'
   } finally {
     isAdjustingHue.value = false
   }
@@ -507,7 +507,7 @@ const generateDemo = () => {
   const demoImage = {
     id: Date.now().toString(),
     url: `https://picsum.photos/512/512?random=${Date.now()}`,
-    prompt: prompt.value || 'Demo obrázok',
+    prompt: prompt.value || 'Demo image',
     negativePrompt: negativePrompt.value,
     timestamp: new Date(),
   }
@@ -541,7 +541,7 @@ defineExpose({
       <!-- 2. Upload vlastného obrázka -->
       <div class="upload-section">
         <div class="upload-divider">
-          <span>alebo nahrajte vlastný</span>
+          <span>or upload your own</span>
         </div>
         
         <div class="image-upload-area">
@@ -556,12 +556,12 @@ defineExpose({
           
           <div v-if="!inputImagePreview" class="upload-placeholder">
             <label for="image-upload" class="upload-label">
-              📁 Kliknite sem
+              📁 Click here
             </label>
           </div>
           
           <div v-else class="image-preview">
-            <img :src="inputImagePreview" alt="Nahraný obrázok" />
+            <img :src="inputImagePreview" alt="Uploaded image" />
             <button @click="removeInputImage" class="remove-btn" :disabled="isGenerating">
               ✕
             </button>
@@ -571,7 +571,7 @@ defineExpose({
 
       <!-- 3. Sila zmeny (len ak je vybraný obrázok) -->
       <div v-if="inputImagePreview" class="slider-group strength-section">
-        <label for="strength">Sila zmeny ({{ (strength * 100).toFixed(0) }}%)</label>
+        <label for="strength">Change strength ({{ (strength * 100).toFixed(0) }}%)</label>
         <input
           id="strength"
           type="range"
@@ -603,9 +603,9 @@ defineExpose({
         :disabled="isGenerating || !prompt.trim()"
         class="btn-primary btn-generate-main"
       >
-        <span v-if="isGenerating">⏳ Generujem...</span>
-        <span v-else-if="inputImagePreview">🎨 Upraviť obrázok</span>
-        <span v-else>🎨 Generovať obrázok</span>
+        <span v-if="isGenerating">⏳ Generating...</span>
+        <span v-else-if="inputImagePreview">🎨 Edit image</span>
+        <span v-else>🎨 Generate image</span>
       </button>
 
       <div v-if="error" class="error-message">
@@ -614,14 +614,14 @@ defineExpose({
 
       <!-- Rozšírené nastavenia - skryté v collapse -->
       <details class="advanced-settings">
-        <summary>⚙️ Rozšírené nastavenia</summary>
+        <summary>⚙️ Advanced settings</summary>
         
         <div class="settings-content">
           <!-- Model -->
           <div class="input-group">
             <label for="model-select">Model</label>
             <select id="model-select" v-model="model" :disabled="isGenerating">
-              <option value="lite">Lite (rýchlejší)</option>
+              <option value="lite">Lite (faster)</option>
               <option value="dreamshaper">🏆 DreamShaper 8</option>
               <option value="absolutereality">⭐ Absolute Reality</option>
               <option value="epicrealism">🎨 Epic Realism</option>
@@ -633,10 +633,10 @@ defineExpose({
 
           <!-- Rozmery obrázka -->
           <div class="input-group">
-            <label for="image-dimensions">📏 Rozmery obrázka</label>
+            <label for="image-dimensions">📏 Image dimensions</label>
             <select id="image-dimensions" v-model.number="sizeMultiplier" :disabled="isGenerating">
-              <option :value="1">zo šablóny ({{ templateWidth }}×{{ templateHeight }} px)</option>
-              <option :value="2">zo šablóny x2 ({{ templateWidth * 2 }}×{{ templateHeight * 2 }} px)</option>
+              <option :value="1">from template ({{ templateWidth }}×{{ templateHeight }} px)</option>
+              <option :value="2">from template x2 ({{ templateWidth * 2 }}×{{ templateHeight * 2 }} px)</option>
             </select>
           </div>
 
@@ -652,13 +652,13 @@ defineExpose({
                   v-model="showAllLoras"
                   :disabled="isGenerating"
                 />
-                <span>Zobraziť všetky LoRA</span>
+                <span>Show all LoRA</span>
               </label>
               <span class="lora-count">({{ filteredLoras.length }} z {{ availableLoras.length }})</span>
             </div>
             
             <select id="lora-select" v-model="selectedLora" :disabled="isGenerating">
-              <option value="">🚫 Bez LoRA</option>
+              <option value="">🚫 No LoRA</option>
               <option v-for="lora in filteredLoras" :key="lora" :value="lora">
                 {{ lora }}
               </option>
@@ -666,7 +666,7 @@ defineExpose({
             
             <div v-if="selectedLora" class="slider-group">
               <label for="lora-scale">
-                Sila LoRA ({{ (loraScale * 100).toFixed(0) }}%)
+                LoRA strength ({{ (loraScale * 100).toFixed(0) }}%)
               </label>
               <input
                 id="lora-scale"
@@ -682,7 +682,7 @@ defineExpose({
 
           <!-- Negatívny prompt -->
           <div class="input-group">
-            <label for="negative-prompt">Negatívny prompt</label>
+            <label for="negative-prompt">Negative prompt</label>
             <textarea
               id="negative-prompt"
               v-model="negativePrompt"
@@ -694,16 +694,16 @@ defineExpose({
 
           <!-- Seed -->
           <div class="input-group">
-            <label for="seed">🎲 Seed (reprodukovateľnosť)</label>
+            <label for="seed">🎲 Seed (reproducibility)</label>
             <input
               id="seed"
               type="text"
               v-model="seed"
-              placeholder="Prázdne = náhodný seed"
+              placeholder="Empty = random seed"
               :disabled="isGenerating"
             />
             <small style="color: #666; font-size: 0.85rem; margin-top: 0.25rem; display: block;">
-              Rovnaký seed + prompt = rovnaký výsledok
+              Same seed + prompt = same result
             </small>
           </div>
 
@@ -715,7 +715,7 @@ defineExpose({
                 v-model="autoRemoveBackground"
                 :disabled="isGenerating"
               />
-              <span>🎭 Automaticky odstrániť pozadie</span>
+              <span>🎭 Automatically remove background</span>
             </label>
             
             <div v-if="autoRemoveBackground" class="sub-checkbox">
@@ -725,7 +725,7 @@ defineExpose({
                   v-model="useAiRemoval"
                   :disabled="isGenerating"
                 />
-                <span>🤖 Použiť AI (rembg)</span>
+                <span>🤖 Use AI (rembg)</span>
               </label>
             </div>
           </div>
@@ -738,7 +738,7 @@ defineExpose({
               class="btn-remove-bg"
             >
               <span v-if="isRemovingBackground">⏳ ...</span>
-              <span v-else>🧹 Odstrániť pozadie</span>
+              <span v-else>🧹 Remove background</span>
             </button>
 
             <button 
@@ -752,10 +752,10 @@ defineExpose({
 
           <!-- Farebné úpravy -->
           <div v-if="lastGeneratedImage" class="color-adjust-section">
-            <h4>🎨 Úprava odtieňa</h4>
+            <h4>🎨 Hue adjustment</h4>
             <div class="slider-group">
               <label>
-                Posun: <strong>{{ hueShift }}°</strong>
+                Shift: <strong>{{ hueShift }}°</strong>
               </label>
               <input
                 type="range"
@@ -771,7 +771,7 @@ defineExpose({
                 class="btn-hue"
               >
                 <span v-if="isAdjustingHue">⏳</span>
-                <span v-else>🎨 Zmeniť</span>
+                <span v-else>🎨 Apply</span>
               </button>
             </div>
           </div>

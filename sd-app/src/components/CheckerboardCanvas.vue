@@ -1197,7 +1197,7 @@ watch(() => props.showGrid, () => {
           :checked="props.showNumbering"
           @change="$emit('toggle-numbering', $event.target.checked)"
         />
-        <span>🔢 Číslovanie</span>
+        <span>🔢 Numbering</span>
       </label>
       <label class="checkbox-label">
         <input 
@@ -1205,7 +1205,7 @@ watch(() => props.showGrid, () => {
           :checked="props.showGallery"
           @change="$emit('toggle-gallery', $event.target.checked)"
         />
-        <span>🖼️ Galéria</span>
+        <span>🖼️ Gallery</span>
       </label>
       <label class="checkbox-label">
         <input 
@@ -1213,7 +1213,7 @@ watch(() => props.showGrid, () => {
           :checked="props.showGrid"
           @change="$emit('toggle-grid', $event.target.checked)"
         />
-        <span>☰ Mriežka</span>
+        <span>☰ Grid</span>
       </label>
     </div>
   </div>

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import Modal from './Modal.vue'
 
 const props = defineProps({
   buildings: {
@@ -13,10 +14,35 @@ const props = defineProps({
   filterResourceId: {
     type: String,
     default: null
+  },
+  resources: {
+    type: Array,
+    default: () => []
   }
 })
 
 const emit = defineEmits(['building-selected', 'clear-filter', 'reorder-buildings'])
+
+// Info modal
+const showInfoModal = ref(false)
+const infoBuildingData = ref(null)
+
+const openInfoModal = (event, building) => {
+  event.stopPropagation()
+  infoBuildingData.value = building
+  showInfoModal.value = true
+}
+
+const closeInfoModal = () => {
+  showInfoModal.value = false
+  infoBuildingData.value = null
+}
+
+// Získanie ikony suroviny podľa resourceId
+const getResourceIcon = (resourceId) => {
+  const resource = props.resources.find(r => r.id === resourceId)
+  return resource?.icon || null
+}
 
 // Drag and drop
 const draggedItemId = ref(null)
@@ -147,13 +173,13 @@ const totalCount = computed(() => props.buildings.length)
     </div>
     
     <div v-if="buildingCount === 0 && !filterResourceId" class="empty-state">
-      <p>Žiadne budovy</p>
-      <p class="hint">Načítajte projekt s budovami</p>
+      <p>No buildings</p>
+      <p class="hint">Load a project with buildings</p>
     </div>
 
     <div v-else-if="buildingCount === 0 && filterResourceId" class="empty-state">
-      <p>Žiadne budovy pre túto surovinu</p>
-      <button class="clear-filter-btn-large" @click="emit('clear-filter')">Zobraziť všetky</button>
+      <p>No buildings for this resource</p>
+      <button class="clear-filter-btn-large" @click="emit('clear-filter')">Show all</button>
     </div>
     
     <div v-else class="building-grid">
@@ -176,8 +202,87 @@ const totalCount = computed(() => props.buildings.length)
           <span class="building-size">{{ building.buildingData?.buildingSize || '1x1' }}</span>
         </div>
         <div v-if="building.id === selectedBuildingId" class="selected-indicator">✓</div>
+        <button class="info-btn" @click="openInfoModal($event, building)" title="Building info">ℹ</button>
       </div>
     </div>
+
+    <!-- Info Modal -->
+    <Modal v-if="showInfoModal && infoBuildingData" :title="infoBuildingData.buildingData?.buildingName || 'Building info'" width="420px" @close="closeInfoModal">
+      <div class="info-modal-content">
+        <div class="info-header">
+          <img :src="infoBuildingData.url" :alt="infoBuildingData.buildingData?.buildingName" class="info-preview" />
+          <div class="info-title">
+            <h3>{{ infoBuildingData.buildingData?.buildingName || 'Building' }}</h3>
+            <span class="info-size-badge">{{ infoBuildingData.buildingData?.buildingSize || '1x1' }}</span>
+          </div>
+        </div>
+
+        <!-- Cena stavby -->
+        <div v-if="infoBuildingData.buildingData?.buildCost?.length" class="info-section">
+          <div class="info-section-header">
+            <span class="info-section-icon">🏗️</span>
+            <span class="info-section-label">Build Cost</span>
+          </div>
+          <div class="resource-list">
+            <div v-for="item in infoBuildingData.buildingData.buildCost" :key="item.resourceId" class="resource-item">
+              <img v-if="getResourceIcon(item.resourceId)" :src="getResourceIcon(item.resourceId)" class="resource-icon-img" />
+              <span class="resource-name">{{ item.resourceName || item.resourceId }}</span>
+              <span class="resource-amount cost">-{{ item.amount }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prevádzkové náklady -->
+        <div v-if="infoBuildingData.buildingData?.operationalCost?.length" class="info-section">
+          <div class="info-section-header">
+            <span class="info-section-icon">⚡</span>
+            <span class="info-section-label">Operating Cost</span>
+          </div>
+          <div class="resource-list">
+            <div v-for="item in infoBuildingData.buildingData.operationalCost" :key="item.resourceId" class="resource-item">
+              <img v-if="getResourceIcon(item.resourceId)" :src="getResourceIcon(item.resourceId)" class="resource-icon-img" />
+              <span class="resource-name">{{ item.resourceName || item.resourceId }}</span>
+              <span class="resource-amount cost">-{{ item.amount }}/cycle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Produkcia -->
+        <div v-if="infoBuildingData.buildingData?.production?.length" class="info-section">
+          <div class="info-section-header">
+            <span class="info-section-icon">📦</span>
+            <span class="info-section-label">Production</span>
+          </div>
+          <div class="resource-list">
+            <div v-for="item in infoBuildingData.buildingData.production" :key="item.resourceId" class="resource-item">
+              <img v-if="getResourceIcon(item.resourceId)" :src="getResourceIcon(item.resourceId)" class="resource-icon-img" />
+              <span class="resource-name">{{ item.resourceName || item.resourceId }}</span>
+              <span class="resource-amount production">+{{ item.amount }}/cycle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skladovanie -->
+        <div v-if="infoBuildingData.buildingData?.stored?.length" class="info-section">
+          <div class="info-section-header">
+            <span class="info-section-icon">🏚️</span>
+            <span class="info-section-label">Storage</span>
+          </div>
+          <div class="resource-list">
+            <div v-for="item in infoBuildingData.buildingData.stored" :key="item.resourceId" class="resource-item">
+              <img v-if="getResourceIcon(item.resourceId)" :src="getResourceIcon(item.resourceId)" class="resource-icon-img" />
+              <span class="resource-name">{{ item.resourceName || item.resourceId }}</span>
+              <span class="resource-amount stored">{{ item.amount }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prázdne info ak nič nemá -->
+        <div v-if="!infoBuildingData.buildingData?.buildCost?.length && !infoBuildingData.buildingData?.operationalCost?.length && !infoBuildingData.buildingData?.production?.length && !infoBuildingData.buildingData?.stored?.length" class="info-empty">
+          No economic data
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -382,5 +487,163 @@ const totalCount = computed(() => props.buildings.length)
 
 .building-item:active {
   cursor: grabbing;
+}
+
+/* Info button */
+.info-btn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+  z-index: 2;
+  padding: 0;
+  line-height: 1;
+}
+
+.building-item:hover .info-btn {
+  opacity: 1;
+}
+
+.info-btn:hover {
+  background: #667eea;
+  transform: scale(1.1);
+}
+
+/* Info Modal Content */
+.info-modal-content {
+  padding: 0.5rem;
+}
+
+.info-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.info-preview {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  padding: 4px;
+}
+
+.info-title h3 {
+  margin: 0 0 0.3rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.info-size-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.info-section {
+  margin-bottom: 0.75rem;
+}
+
+.info-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.info-section-icon {
+  font-size: 0.9rem;
+}
+
+.info-section-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.resource-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0.5rem;
+  background: #f9fafb;
+  border-radius: 6px;
+  gap: 0.4rem;
+}
+
+.resource-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.resource-name {
+  font-size: 0.82rem;
+  color: #4b5563;
+  font-weight: 500;
+  flex: 1;
+}
+
+.resource-amount {
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+.resource-amount.cost {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.resource-amount.production {
+  color: #16a34a;
+  background: #f0fdf4;
+}
+
+.resource-amount.stored {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.info-empty {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  padding: 1rem;
+  font-style: italic;
 }
 </style>

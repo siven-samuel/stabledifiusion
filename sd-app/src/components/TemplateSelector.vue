@@ -5,7 +5,7 @@ const emit = defineEmits(['template-selected', 'tab-changed', 'road-sprite-selec
 
 const activeTemplateTab = ref('buildings')
 const templateImages = ref({
-  'buildings': ['0-5.png', '0.png', '0x1.png', '0x2.png', '0x3.png', '1.png', '1x3.png', '4x1.png', '4x2-1.png', '4x2-2.png', '4x3-1.png', '4x3-2.png', '4x3-3.png', 'cilinder.png', 'cilnderTower.png', 'halfsphere.png', 'piramide.png', 'pog.png', 'sphere.png', 'tube.png', 'tube2.png', 'cone.png'],
+  'buildings': ['0-5.png', '0.png', '0x1.png', '0x2.png', '0x3.png', '1.png', '1x3.png', '4x1.png', '4x2-1.png', '4x2-2.png', '4x3-1.png', '4x3-2.png', '4x3-3.png', 'cilinder.png', 'cilnderTower.png', 'halfsphere.png', 'piramide.png', 'pog.png', 'rocket.png', 'sphere.png', 'tube.png', 'tube2.png', 'cone.png'],
   'terrian': ['bush.png', 'bushes.png', 'rock.png', 'rockbig.png', 'tree1.png', 'trees.png', 'tree2.png'],
   'roads': ['basic.png', 'futureroad.png', 'presentroad.png', 'pastroad.png', 'egpyt.png']
 })

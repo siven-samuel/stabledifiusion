@@ -44,17 +44,17 @@ const imageSizeOptions = [
 ]
 
 const loraModels = [
-  { label: '❌ Žiadna LoRA', value: '' },
+  { label: '❌ No LoRA', value: '' },
   { label: 'DiffuseTexture v11 (SD 1.5)', value: 'DiffuseTexture_v11.safetensors' }
 ]
 
 const baseModels = [
-  { label: 'LITE (SD v1.4) - rýchly', value: 'lite' },
-  { label: 'Full (SD v1.5) - kvalitný', value: 'full' },
-  { label: 'Texture Diffusion - 🎯 textúry', value: 'texture' },
+  { label: 'LITE (SD v1.4) - fast', value: 'lite' },
+  { label: 'Full (SD v1.5) - quality', value: 'full' },
+  { label: 'Texture Diffusion - 🎯 textures', value: 'texture' },
   { label: 'DreamShaper 8', value: 'dreamshaper' },
   { label: 'Realistic Vision V5.1', value: 'realistic' },
-  { label: 'SDXL - 🌟 najvyššia kvalita', value: 'sdxl' },
+  { label: 'SDXL - 🌟 highest quality', value: 'sdxl' },
   { label: 'Absolute Reality 1.81', value: 'absolutereality' },
   { label: 'Epic Realism', value: 'epicrealism' },
   { label: 'MajicMix Realistic v7', value: 'majicmix' }
@@ -71,14 +71,14 @@ const loraCompatibilityWarning = computed(() => {
   if (lora.includes('DiffuseTexture')) {
     const compatibleModels = ['lite', 'full', 'dreamshaper', 'realistic', 'absolutereality', 'epicrealism', 'majicmix']
     if (!compatibleModels.includes(model)) {
-      return `⚠️ DiffuseTexture v11 je kompatibilný len s SD 1.5 modelmi (lite, full, dreamshaper, realistic, atd.). Pre model "${model}" vypnite LoRA.`
+      return `⚠️ DiffuseTexture v11 is only compatible with SD 1.5 models (lite, full, dreamshaper, realistic, etc.). For model "${model}", disable LoRA.`
     }
   }
   
   // Seamless Texture je pre SDXL
   if (lora.includes('seamless')) {
     if (model !== 'sdxl') {
-      return `⚠️ Seamless Texture je kompatibilný len s SDXL modelom. Zvoľte SDXL model alebo vypnite LoRA.`
+      return `⚠️ Seamless Texture is only compatible with the SDXL model. Select SDXL model or disable LoRA.`
     }
   }
   
@@ -112,7 +112,7 @@ const handleTextureApply = (adjustedImage, tiles) => {
   emit('tiles-generated', {
     tiles: [adjustedImage],
     tilesPerImage: tiles || tilesPerImage.value,
-    prompt: 'Predvolená textúra',
+    prompt: 'Default texture',
     timestamp: new Date()
   })
 }
@@ -148,7 +148,7 @@ const emitTextureSettings = () => {
 // Generuj textúru pomocou AI
 const generateTexture = async () => {
   if (!generationPrompt.value.trim()) {
-    alert('Prosím zadajte prompt pre generovanie textúry')
+    alert('Please enter a prompt for texture generation')
     return
   }
 
@@ -201,7 +201,7 @@ const generateTexture = async () => {
     }
   } catch (error) {
     console.error('Chyba pri generovaní textúry:', error)
-    alert('Chyba pri generovaní textúry. Skontrolujte či beží backend server.')
+    alert('Error generating texture. Check if the backend server is running.')
   } finally {
     isGenerating.value = false
   }
@@ -260,7 +260,7 @@ watch(() => props.initialTextureSettings, (newSettings) => {
       
       <!-- Predvolená textúra s farebnými úpravami -->
       <div class="texture-section">
-        <label>🎨 Základná textúra</label>
+        <label>🎨 Base Texture</label>
         
         <div class="texture-upload">
           <input
@@ -271,7 +271,7 @@ watch(() => props.initialTextureSettings, (newSettings) => {
             class="file-input"
           />
           <div v-if="customTexture" class="upload-info">
-            <span>✅ Vlastná textúra nahratá</span>
+            <span>✅ Custom texture uploaded</span>
             <button 
               @click="clearCustomTexture" 
               class="btn-clear"
@@ -295,15 +295,15 @@ watch(() => props.initialTextureSettings, (newSettings) => {
 
       <div class="info-box">
         <p><strong>💡 Texture Manager:</strong></p>
-        <p>Nastavte textúru pozadia, farebné úpravy a rozlíšenie pre mapu.</p>
+        <p>Set the background texture, color adjustments, and resolution for the map.</p>
       </div>
 
       <!-- AI generovanie textúr -->
       <div class="generation-section">
-        <h4>🤖 AI Generovanie textúr</h4>
+        <h4>🤖 AI Texture Generation</h4>
         
         <div class="input-group">
-          <label>📝 Prompt pre generovanie</label>
+          <label>📝 Generation Prompt</label>
           <input
             v-model="generationPrompt"
             type="text"
@@ -313,7 +313,7 @@ watch(() => props.initialTextureSettings, (newSettings) => {
         </div>
 
         <div class="input-group">
-          <label>📐 Veľkosť obrázka</label>
+          <label>📐 Image Size</label>
           <select v-model="imageSize" class="select-input">
             <option 
               v-for="size in imageSizeOptions" 
@@ -339,7 +339,7 @@ watch(() => props.initialTextureSettings, (newSettings) => {
         </div>
 
         <div class="input-group">
-          <label>🖼️ Základný Model</label>
+          <label>🖼️ Base Model</label>
           <select v-model="selectedBaseModel" class="select-input">
             <option 
               v-for="model in baseModels" 
@@ -359,15 +359,15 @@ watch(() => props.initialTextureSettings, (newSettings) => {
           :disabled="isGenerating || !generationPrompt.trim()"
           class="btn-generate"
         >
-          {{ isGenerating ? '⏳ Generujem...' : '✨ Vygenerovať textúru' }}
+          {{ isGenerating ? '⏳ Generating...' : '✨ Generate Texture' }}
         </button>
 
         <!-- Náhľad vygenerovanej textúry -->
         <div v-if="generatedTexturePreview" class="texture-preview">
           <div class="preview-header">
-            <label>👁️ Náhľad súvislosti textúry</label>
-            <button @click="downloadTexture" class="btn-download" title="Stiahnuť obrázok">
-              💾 Stiahnuť
+            <label>👁️ Texture Tiling Preview</label>
+            <button @click="downloadTexture" class="btn-download" title="Download image">
+              💾 Download
             </button>
           </div>
           <div 
@@ -379,7 +379,7 @@ watch(() => props.initialTextureSettings, (newSettings) => {
             }"
           >
           </div>
-          <p class="preview-hint">Textúra zopakovaná 3x3 - skontrolujte súvislé prechody</p>
+          <p class="preview-hint">Texture repeated 3x3 - check seamless transitions</p>
         </div>
       </div>
     </div>

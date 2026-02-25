@@ -31,9 +31,9 @@ const newEventTrigger = ref('day')
 
 // Trigger typy
 const triggerTypes = [
-  { value: 'day', label: '📅 Day Event', description: 'Spustí sa v konkrétny herný deň' },
-  { value: 'resource', label: '📦 Resource Event', description: 'Spustí sa pri zmene resources' },
-  { value: 'building', label: '🏗️ Building Event', description: 'Spustí sa pri akcii s budovou' }
+  { value: 'day', label: '📅 Day Event', description: 'Triggers on a specific game day' },
+  { value: 'resource', label: '📦 Resource Event', description: 'Triggers on resource change' },
+  { value: 'building', label: '🏗️ Building Event', description: 'Triggers on building action' }
 ]
 
 // Day event konfigurácia
@@ -45,10 +45,10 @@ const resourceEventResourceId = ref('')
 const resourceEventValue = ref(0)
 
 const resourceConditions = [
-  { value: 'reaches', label: 'Dosiahne hodnotu' },
-  { value: 'drops_below', label: 'Klesne pod' },
-  { value: 'exceeds', label: 'Presiahne' },
-  { value: 'equals', label: 'Rovná sa' }
+  { value: 'reaches', label: 'Reaches value' },
+  { value: 'drops_below', label: 'Drops below' },
+  { value: 'exceeds', label: 'Exceeds' },
+  { value: 'equals', label: 'Equals' }
 ]
 
 // Building event konfigurácia
@@ -67,11 +67,11 @@ const allBuildings = computed(() => {
 })
 
 const buildingConditions = [
-  { value: 'built', label: 'Budova postavená' },
-  { value: 'destroyed', label: 'Budova zničená' },
-  { value: 'recycled', label: 'Budova recyklovaná' },
-  { value: 'production_started', label: 'Produkcia spustená' },
-  { value: 'production_stopped', label: 'Produkcia zastavená' }
+  { value: 'built', label: 'Building built' },
+  { value: 'destroyed', label: 'Building destroyed' },
+  { value: 'recycled', label: 'Building recycled' },
+  { value: 'production_started', label: 'Production started' },
+  { value: 'production_stopped', label: 'Production stopped' }
 ]
 
 // Akcie pre event
@@ -80,12 +80,58 @@ const newActionMessage = ref('')
 const newActionResourceId = ref('')
 const newActionResourceAmount = ref(0)
 
+// Building effect action
+const newActionBuildingIds = ref([])
+const newActionBuildingEffect = ref('disable_production')
+
+// Resource effect action
+const newActionResEffectResourceId = ref('')
+const newActionResEffectAmount = ref(0)
+
+// Duration & animation
+const newActionDuration = ref(1)
+const newActionAnimation = ref('none')
+
+// Pending actions for new event
+const pendingActions = ref([])
+
 const actionTypes = [
-  { value: 'show_message', label: '💬 Zobraziť správu' },
-  { value: 'add_resource', label: '➕ Pridať resource' },
-  { value: 'remove_resource', label: '➖ Odobrať resource' },
-  { value: 'unlock_building', label: '🔓 Odomknúť budovu' }
+  { value: 'show_message', label: '💬 Show message' },
+  { value: 'add_resource', label: '➕ Add resource' },
+  { value: 'remove_resource', label: '➖ Remove resource' },
+  { value: 'unlock_building', label: '🔓 Unlock building' },
+  { value: 'building_effect', label: '🏗️ Building effect' },
+  { value: 'resource_effect', label: '📉 Resource effect' }
 ]
+
+const buildingEffectTypes = [
+  { value: 'disable_production', label: 'Disable production (cannot re-enable)' },
+  { value: 'stop_production', label: 'Stop production' }
+]
+
+const animationOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'shake', label: 'Shake' },
+  { value: 'flash', label: 'Flash' },
+  { value: 'pulse', label: 'Pulse' },
+  { value: 'fade', label: 'Fade' },
+  { value: 'bounce', label: 'Bounce' },
+  { value: 'fire', label: 'Fire' },
+  { value: 'smoke', label: 'Smoke' },
+  { value: 'night', label: 'Night' }
+]
+
+// Edit action state
+const editActionType = ref('show_message')
+const editActionMessage = ref('')
+const editActionResourceId = ref('')
+const editActionResourceAmount = ref(0)
+const editActionBuildingIds = ref([])
+const editActionBuildingEffect = ref('disable_production')
+const editActionResEffectResourceId = ref('')
+const editActionResEffectAmount = ref(0)
+const editActionDuration = ref(1)
+const editActionAnimation = ref('none')
 
 // Editácia
 const editingIndex = ref(-1)
@@ -137,6 +183,143 @@ const removeEditImage = () => {
   if (editImageInput.value) editImageInput.value.value = ''
 }
 
+// Add action to pending list (new event) or editing event
+const addActionToPending = () => {
+  const action = buildActionObject(
+    newActionType.value,
+    newActionMessage.value,
+    newActionResourceId.value,
+    newActionResourceAmount.value,
+    newActionBuildingIds.value,
+    newActionBuildingEffect.value,
+    newActionResEffectResourceId.value,
+    newActionResEffectAmount.value,
+    newActionDuration.value,
+    newActionAnimation.value
+  )
+  if (!action) return
+  pendingActions.value.push(action)
+  resetActionForm('new')
+}
+
+const addActionToEditing = () => {
+  if (!editingEvent.value) return
+  const action = buildActionObject(
+    editActionType.value,
+    editActionMessage.value,
+    editActionResourceId.value,
+    editActionResourceAmount.value,
+    editActionBuildingIds.value,
+    editActionBuildingEffect.value,
+    editActionResEffectResourceId.value,
+    editActionResEffectAmount.value,
+    editActionDuration.value,
+    editActionAnimation.value
+  )
+  if (!action) return
+  if (!editingEvent.value.actions) editingEvent.value.actions = []
+  editingEvent.value.actions.push(action)
+  resetActionForm('edit')
+}
+
+const buildActionObject = (type, message, resourceId, resourceAmount, buildingIds, buildingEffect, resEffectResourceId, resEffectAmount, duration, animation) => {
+  const action = {
+    id: Date.now() + Math.random(),
+    type,
+    animation
+  }
+  switch (type) {
+    case 'show_message':
+      if (!message.trim()) return null
+      action.message = message.trim()
+      break
+    case 'add_resource':
+    case 'remove_resource':
+      action.resourceId = resourceId
+      action.resourceName = allResources.value.find(r => r.id === resourceId)?.name || ''
+      action.amount = resourceAmount
+      break
+    case 'unlock_building':
+      action.buildingIds = [...buildingIds]
+      break
+    case 'building_effect':
+      action.buildingIds = [...buildingIds]
+      action.buildingNames = buildingIds.map(id => allBuildings.value.find(b => b.id === id)?.buildingData?.buildingName || 'Unknown')
+      action.effectType = buildingEffect
+      action.duration = duration
+      break
+    case 'resource_effect':
+      action.resourceId = resEffectResourceId
+      action.resourceName = allResources.value.find(r => r.id === resEffectResourceId)?.name || ''
+      action.amount = resEffectAmount
+      action.duration = duration
+      break
+  }
+  return action
+}
+
+const resetActionForm = (target) => {
+  if (target === 'new') {
+    newActionType.value = 'show_message'
+    newActionMessage.value = ''
+    newActionResourceId.value = ''
+    newActionResourceAmount.value = 0
+    newActionBuildingIds.value = []
+    newActionBuildingEffect.value = 'disable_production'
+    newActionResEffectResourceId.value = ''
+    newActionResEffectAmount.value = 0
+    newActionDuration.value = 1
+    newActionAnimation.value = 'none'
+  } else {
+    editActionType.value = 'show_message'
+    editActionMessage.value = ''
+    editActionResourceId.value = ''
+    editActionResourceAmount.value = 0
+    editActionBuildingIds.value = []
+    editActionBuildingEffect.value = 'disable_production'
+    editActionResEffectResourceId.value = ''
+    editActionResEffectAmount.value = 0
+    editActionDuration.value = 1
+    editActionAnimation.value = 'none'
+  }
+}
+
+const removePendingAction = (index) => {
+  pendingActions.value.splice(index, 1)
+}
+
+const removeEditAction = (index) => {
+  if (editingEvent.value && editingEvent.value.actions) {
+    editingEvent.value.actions.splice(index, 1)
+  }
+}
+
+const getActionLabel = (type) => {
+  const found = actionTypes.find(a => a.value === type)
+  return found ? found.label : type
+}
+
+const getActionSummary = (action) => {
+  switch (action.type) {
+    case 'show_message':
+      return action.message ? `"${action.message.substring(0, 40)}${action.message.length > 40 ? '...' : ''}"` : ''
+    case 'add_resource':
+      return `+${action.amount} ${action.resourceName || action.resourceId}`
+    case 'remove_resource':
+      return `-${action.amount} ${action.resourceName || action.resourceId}`
+    case 'unlock_building':
+      return `${action.buildingIds?.length || 0} building(s)`
+    case 'building_effect': {
+      const eff = buildingEffectTypes.find(e => e.value === action.effectType)?.label || action.effectType
+      return `${eff} — ${action.buildingNames?.join(', ') || 'selected buildings'} (${action.duration} day${action.duration > 1 ? 's' : ''})`
+    }
+    case 'resource_effect':
+      return `-${action.amount} ${action.resourceName || action.resourceId} / day (${action.duration} day${action.duration > 1 ? 's' : ''})`
+    default:
+      return ''
+  }
+}
+
 const addEvent = () => {
   if (!newEventName.value.trim()) return
 
@@ -148,7 +331,7 @@ const addEvent = () => {
     trigger: newEventTrigger.value,
     enabled: true,
     triggerConfig: getTriggerConfig(),
-    actions: []
+    actions: [...pendingActions.value]
   }
 
   const updated = [...props.events, event]
@@ -166,6 +349,8 @@ const addEvent = () => {
   resourceEventValue.value = 0
   buildingEventType.value = 'built'
   buildingEventBuildingId.value = ''
+  pendingActions.value = []
+  resetActionForm('new')
 }
 
 const getTriggerConfig = () => {
@@ -229,7 +414,7 @@ const getTriggerDescription = (event) => {
   if (!event.triggerConfig) return ''
   switch (event.trigger) {
     case 'day':
-      return `Deň ${event.triggerConfig.day}`
+      return `Day ${event.triggerConfig.day}`
     case 'resource': {
       const cond = resourceConditions.find(c => c.value === event.triggerConfig.condition)
       const resName = event.triggerConfig.resourceName || allResources.value.find(r => r.id === event.triggerConfig.resourceId)?.name || event.triggerConfig.resourceId
@@ -250,30 +435,30 @@ const getTriggerDescription = (event) => {
   <div class="event-emitter">
     <!-- Formulár pre nový event -->
     <div class="new-event-form">
-      <h3>➕ Vytvoriť nový event</h3>
+      <h3>➕ Create new event</h3>
       
       <div class="form-row">
-        <label>Názov eventu</label>
+        <label>Event name</label>
         <input 
           v-model="newEventName" 
           type="text" 
-          placeholder="Napr. Príchod posíl..." 
+          placeholder="E.g. Reinforcements arrive..." 
           class="form-input"
         />
       </div>
 
       <div class="form-row">
-        <label>Popis eventu</label>
+        <label>Event description</label>
         <textarea 
           v-model="newEventDescription" 
-          placeholder="Dlhší popis toho čo sa stane..." 
+          placeholder="Longer description of what happens..." 
           class="form-textarea"
           rows="3"
         ></textarea>
       </div>
 
       <div class="form-row">
-        <label>Obrázok (voliteľné)</label>
+        <label>Image (optional)</label>
         <div class="image-upload-area">
           <input 
             ref="imageInput"
@@ -284,7 +469,7 @@ const getTriggerDescription = (event) => {
           />
           <div v-if="newEventImage" class="image-preview">
             <img :src="newEventImage" alt="Event preview" />
-            <button @click="removeNewImage" class="btn-remove-img" title="Odstrániť obrázok">✕</button>
+            <button @click="removeNewImage" class="btn-remove-img" title="Remove image">✕</button>
           </div>
         </div>
       </div>
@@ -304,7 +489,7 @@ const getTriggerDescription = (event) => {
       <!-- Day Event konfigurácia -->
       <div v-if="newEventTrigger === 'day'" class="trigger-config">
         <div class="form-row">
-          <label>Herný deň</label>
+          <label>Game day</label>
           <input v-model.number="dayEventDay" type="number" min="1" class="form-input small" />
         </div>
       </div>
@@ -312,7 +497,7 @@ const getTriggerDescription = (event) => {
       <!-- Resource Event konfigurácia -->
       <div v-if="newEventTrigger === 'resource'" class="trigger-config">
         <div class="form-row">
-          <label>Podmienka</label>
+          <label>Condition</label>
           <select v-model="resourceEventType" class="form-select">
             <option v-for="c in resourceConditions" :key="c.value" :value="c.value">
               {{ c.label }}
@@ -322,15 +507,15 @@ const getTriggerDescription = (event) => {
         <div class="form-row">
           <label>Resource</label>
           <select v-model="resourceEventResourceId" class="form-select">
-            <option value="" disabled>-- Vyber resource --</option>
+            <option value="" disabled>-- Select resource --</option>
             <option v-for="r in allResources" :key="r.id" :value="r.id">
               {{ r.name }} {{ r.workResource ? '(👷 work)' : '' }}
             </option>
           </select>
-          <span v-if="allResources.length === 0" class="trigger-description">* Žiadne resources nie sú definované</span>
+          <span v-if="allResources.length === 0" class="trigger-description">* No resources are defined</span>
         </div>
         <div class="form-row">
-          <label>Hodnota</label>
+          <label>Value</label>
           <input v-model.number="resourceEventValue" type="number" min="0" class="form-input small" />
         </div>
       </div>
@@ -338,7 +523,7 @@ const getTriggerDescription = (event) => {
       <!-- Building Event konfigurácia -->
       <div v-if="newEventTrigger === 'building'" class="trigger-config">
         <div class="form-row">
-          <label>Typ udalosti</label>
+          <label>Event type</label>
           <select v-model="buildingEventType" class="form-select">
             <option v-for="c in buildingConditions" :key="c.value" :value="c.value">
               {{ c.label }}
@@ -346,28 +531,155 @@ const getTriggerDescription = (event) => {
           </select>
         </div>
         <div class="form-row">
-          <label>Budova (voliteľné)</label>
+          <label>Building (optional)</label>
           <select v-model="buildingEventBuildingId" class="form-select">
-            <option value="">-- Akákoľvek budova --</option>
+            <option value="">-- Any building --</option>
             <option v-for="b in allBuildings" :key="b.id" :value="b.id">
-              {{ b.buildingData?.buildingName || 'Bez názvu' }}
+              {{ b.buildingData?.buildingName || 'Unnamed' }}
             </option>
           </select>
-          <span v-if="allBuildings.length === 0" class="trigger-description">* Žiadne budovy nie sú v galérii</span>
+          <span v-if="allBuildings.length === 0" class="trigger-description">* No buildings in gallery</span>
+        </div>
+      </div>
+
+      <!-- Actions section -->
+      <div class="actions-section">
+        <h4>⚡ Actions</h4>
+        
+        <!-- Pending actions list -->
+        <div v-if="pendingActions.length > 0" class="actions-list-mini">
+          <div v-for="(action, ai) in pendingActions" :key="action.id" class="action-item-mini">
+            <span class="action-badge">{{ getActionLabel(action.type) }}</span>
+            <span class="action-summary">{{ getActionSummary(action) }}</span>
+            <span v-if="action.animation && action.animation !== 'none'" class="action-anim-badge">🎬 {{ action.animation }}</span>
+            <button @click="removePendingAction(ai)" class="btn-remove-action" title="Remove">✕</button>
+          </div>
+        </div>
+
+        <!-- Add action form -->
+        <div class="action-form">
+          <div class="form-row">
+            <label>Action type</label>
+            <select v-model="newActionType" class="form-select">
+              <option v-for="a in actionTypes" :key="a.value" :value="a.value">
+                {{ a.label }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Show message -->
+          <div v-if="newActionType === 'show_message'" class="action-config">
+            <div class="form-row">
+              <label>Message</label>
+              <textarea v-model="newActionMessage" class="form-textarea" rows="2" placeholder="Message to display..."></textarea>
+            </div>
+          </div>
+
+          <!-- Add/Remove resource -->
+          <div v-if="newActionType === 'add_resource' || newActionType === 'remove_resource'" class="action-config">
+            <div class="form-row">
+              <label>Resource</label>
+              <select v-model="newActionResourceId" class="form-select">
+                <option value="" disabled>-- Select resource --</option>
+                <option v-for="r in allResources" :key="r.id" :value="r.id">
+                  {{ r.name }}
+                </option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Amount</label>
+              <input v-model.number="newActionResourceAmount" type="number" min="0" class="form-input small" />
+            </div>
+          </div>
+
+          <!-- Unlock building -->
+          <div v-if="newActionType === 'unlock_building'" class="action-config">
+            <div class="form-row">
+              <label>Buildings to unlock</label>
+              <div class="checkbox-list">
+                <label v-for="b in allBuildings" :key="b.id" class="checkbox-item">
+                  <input type="checkbox" :value="b.id" v-model="newActionBuildingIds" />
+                  {{ b.buildingData?.buildingName || 'Unnamed' }}
+                </label>
+              </div>
+              <span v-if="allBuildings.length === 0" class="trigger-description">* No buildings in gallery</span>
+            </div>
+          </div>
+
+          <!-- Building effect -->
+          <div v-if="newActionType === 'building_effect'" class="action-config">
+            <div class="form-row">
+              <label>Effect type</label>
+              <select v-model="newActionBuildingEffect" class="form-select">
+                <option v-for="e in buildingEffectTypes" :key="e.value" :value="e.value">
+                  {{ e.label }}
+                </option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Affected buildings</label>
+              <div class="checkbox-list">
+                <label v-for="b in allBuildings" :key="b.id" class="checkbox-item">
+                  <input type="checkbox" :value="b.id" v-model="newActionBuildingIds" />
+                  {{ b.buildingData?.buildingName || 'Unnamed' }}
+                </label>
+              </div>
+              <span v-if="allBuildings.length === 0" class="trigger-description">* No buildings in gallery</span>
+            </div>
+            <div class="form-row">
+              <label>Effect duration (days)</label>
+              <input v-model.number="newActionDuration" type="number" min="1" class="form-input small" />
+            </div>
+          </div>
+
+          <!-- Resource effect -->
+          <div v-if="newActionType === 'resource_effect'" class="action-config">
+            <div class="form-row">
+              <label>Resource</label>
+              <select v-model="newActionResEffectResourceId" class="form-select">
+                <option value="" disabled>-- Select resource --</option>
+                <option v-for="r in allResources" :key="r.id" :value="r.id">
+                  {{ r.name }}
+                </option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Amount to lose per day</label>
+              <input v-model.number="newActionResEffectAmount" type="number" min="0" class="form-input small" />
+            </div>
+            <div class="form-row">
+              <label>Effect duration (days)</label>
+              <input v-model.number="newActionDuration" type="number" min="1" class="form-input small" />
+            </div>
+          </div>
+
+          <!-- Animation select (for all action types) -->
+          <div class="form-row">
+            <label>Animation</label>
+            <select v-model="newActionAnimation" class="form-select">
+              <option v-for="a in animationOptions" :key="a.value" :value="a.value">
+                {{ a.label }}
+              </option>
+            </select>
+          </div>
+
+          <button @click="addActionToPending" class="btn-add-action" type="button">
+            ➕ Add Action
+          </button>
         </div>
       </div>
 
       <button @click="addEvent" class="btn-add" :disabled="!newEventName.trim()">
-        ✅ Pridať Event
+        ✅ Add Event
       </button>
     </div>
 
     <!-- Zoznam existujúcich eventov -->
     <div class="events-list">
-      <h3>📋 Existujúce eventy ({{ events.length }})</h3>
+      <h3>📋 Existing events ({{ events.length }})</h3>
       
       <div v-if="events.length === 0" class="empty-state">
-        <p>Žiadne eventy. Vytvor prvý event vyššie.</p>
+        <p>No events. Create your first event above.</p>
       </div>
 
       <div 
@@ -384,11 +696,11 @@ const getTriggerDescription = (event) => {
               {{ event.name }}
             </div>
             <div class="event-actions">
-              <button @click="toggleEvent(index)" class="action-btn" :title="event.enabled ? 'Vypnúť' : 'Zapnúť'">
+              <button @click="toggleEvent(index)" class="action-btn" :title="event.enabled ? 'Disable' : 'Enable'">
                 {{ event.enabled ? '⏸️' : '▶️' }}
               </button>
-              <button @click="startEdit(index)" class="action-btn" title="Upraviť">✏️</button>
-              <button @click="removeEvent(index)" class="action-btn delete" title="Zmazať">🗑️</button>
+              <button @click="startEdit(index)" class="action-btn" title="Edit">✏️</button>
+              <button @click="removeEvent(index)" class="action-btn delete" title="Delete">🗑️</button>
             </div>
           </div>
           <div v-if="event.description" class="event-description">
@@ -401,21 +713,30 @@ const getTriggerDescription = (event) => {
             <span class="event-trigger-badge">{{ getTriggerLabel(event.trigger) }}</span>
             <span class="event-trigger-desc">{{ getTriggerDescription(event) }}</span>
           </div>
+          <!-- Actions display -->
+          <div v-if="event.actions && event.actions.length > 0" class="event-actions-list">
+            <div class="actions-label">⚡ Actions ({{ event.actions.length }}):</div>
+            <div v-for="action in event.actions" :key="action.id" class="action-display-item">
+              <span class="action-badge-sm">{{ getActionLabel(action.type) }}</span>
+              <span class="action-summary-sm">{{ getActionSummary(action) }}</span>
+              <span v-if="action.animation && action.animation !== 'none'" class="action-anim-badge-sm">🎬 {{ action.animation }}</span>
+            </div>
+          </div>
         </template>
 
         <!-- Editácia -->
         <template v-else>
           <div class="edit-form">
             <div class="form-row">
-              <label>Názov</label>
+              <label>Name</label>
               <input v-model="editingEvent.name" type="text" class="form-input" />
             </div>
             <div class="form-row">
-              <label>Popis</label>
-              <textarea v-model="editingEvent.description" class="form-textarea" rows="3" placeholder="Popis eventu..."></textarea>
+              <label>Description</label>
+              <textarea v-model="editingEvent.description" class="form-textarea" rows="3" placeholder="Event description..."></textarea>
             </div>
             <div class="form-row">
-              <label>Obrázok</label>
+              <label>Image</label>
               <div class="image-upload-area">
                 <input 
                   ref="editImageInput"
@@ -426,7 +747,7 @@ const getTriggerDescription = (event) => {
                 />
                 <div v-if="editingEvent.image" class="image-preview">
                   <img :src="editingEvent.image" alt="Event preview" />
-                  <button @click="removeEditImage" class="btn-remove-img" title="Odstrániť obrázok">✕</button>
+                  <button @click="removeEditImage" class="btn-remove-img" title="Remove image">✕</button>
                 </div>
               </div>
             </div>
@@ -438,9 +759,118 @@ const getTriggerDescription = (event) => {
                 </option>
               </select>
             </div>
+
+            <!-- Edit actions section -->
+            <div class="actions-section">
+              <h4>⚡ Actions</h4>
+              <div v-if="editingEvent.actions && editingEvent.actions.length > 0" class="actions-list-mini">
+                <div v-for="(action, ai) in editingEvent.actions" :key="action.id" class="action-item-mini">
+                  <span class="action-badge">{{ getActionLabel(action.type) }}</span>
+                  <span class="action-summary">{{ getActionSummary(action) }}</span>
+                  <span v-if="action.animation && action.animation !== 'none'" class="action-anim-badge">🎬 {{ action.animation }}</span>
+                  <button @click="removeEditAction(ai)" class="btn-remove-action" title="Remove">✕</button>
+                </div>
+              </div>
+
+              <div class="action-form">
+                <div class="form-row">
+                  <label>Action type</label>
+                  <select v-model="editActionType" class="form-select">
+                    <option v-for="a in actionTypes" :key="a.value" :value="a.value">
+                      {{ a.label }}
+                    </option>
+                  </select>
+                </div>
+
+                <div v-if="editActionType === 'show_message'" class="action-config">
+                  <div class="form-row">
+                    <label>Message</label>
+                    <textarea v-model="editActionMessage" class="form-textarea" rows="2" placeholder="Message to display..."></textarea>
+                  </div>
+                </div>
+
+                <div v-if="editActionType === 'add_resource' || editActionType === 'remove_resource'" class="action-config">
+                  <div class="form-row">
+                    <label>Resource</label>
+                    <select v-model="editActionResourceId" class="form-select">
+                      <option value="" disabled>-- Select resource --</option>
+                      <option v-for="r in allResources" :key="r.id" :value="r.id">{{ r.name }}</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Amount</label>
+                    <input v-model.number="editActionResourceAmount" type="number" min="0" class="form-input small" />
+                  </div>
+                </div>
+
+                <div v-if="editActionType === 'unlock_building'" class="action-config">
+                  <div class="form-row">
+                    <label>Buildings to unlock</label>
+                    <div class="checkbox-list">
+                      <label v-for="b in allBuildings" :key="b.id" class="checkbox-item">
+                        <input type="checkbox" :value="b.id" v-model="editActionBuildingIds" />
+                        {{ b.buildingData?.buildingName || 'Unnamed' }}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="editActionType === 'building_effect'" class="action-config">
+                  <div class="form-row">
+                    <label>Effect type</label>
+                    <select v-model="editActionBuildingEffect" class="form-select">
+                      <option v-for="e in buildingEffectTypes" :key="e.value" :value="e.value">{{ e.label }}</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Affected buildings</label>
+                    <div class="checkbox-list">
+                      <label v-for="b in allBuildings" :key="b.id" class="checkbox-item">
+                        <input type="checkbox" :value="b.id" v-model="editActionBuildingIds" />
+                        {{ b.buildingData?.buildingName || 'Unnamed' }}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <label>Effect duration (days)</label>
+                    <input v-model.number="editActionDuration" type="number" min="1" class="form-input small" />
+                  </div>
+                </div>
+
+                <div v-if="editActionType === 'resource_effect'" class="action-config">
+                  <div class="form-row">
+                    <label>Resource</label>
+                    <select v-model="editActionResEffectResourceId" class="form-select">
+                      <option value="" disabled>-- Select resource --</option>
+                      <option v-for="r in allResources" :key="r.id" :value="r.id">{{ r.name }}</option>
+                    </select>
+                  </div>
+                  <div class="form-row">
+                    <label>Amount to lose per day</label>
+                    <input v-model.number="editActionResEffectAmount" type="number" min="0" class="form-input small" />
+                  </div>
+                  <div class="form-row">
+                    <label>Effect duration (days)</label>
+                    <input v-model.number="editActionDuration" type="number" min="1" class="form-input small" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <label>Animation</label>
+                  <select v-model="editActionAnimation" class="form-select">
+                    <option v-for="a in animationOptions" :key="a.value" :value="a.value">{{ a.label }}</option>
+                  </select>
+                </div>
+
+                <button @click="addActionToEditing" class="btn-add-action" type="button">
+                  ➕ Add Action
+                </button>
+              </div>
+            </div>
+
             <div class="edit-actions">
-              <button @click="saveEdit" class="btn-save-edit">💾 Uložiť</button>
-              <button @click="cancelEdit" class="btn-cancel-edit">❌ Zrušiť</button>
+              <button @click="saveEdit" class="btn-save-edit">💾 Save</button>
+              <button @click="cancelEdit" class="btn-cancel-edit">❌ Cancel</button>
             </div>
           </div>
         </template>
@@ -812,5 +1242,202 @@ const getTriggerDescription = (event) => {
   border-radius: 6px;
   border: 1px solid #e5e7eb;
   object-fit: cover;
+}
+
+/* Actions section */
+.actions-section {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #f0f1f5;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.actions-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 700;
+}
+
+.actions-list-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.action-item-mini {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  font-size: 0.82rem;
+}
+
+.action-badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #1d4ed8;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.action-summary {
+  flex: 1;
+  color: #4b5563;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-anim-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.btn-remove-action {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.btn-remove-action:hover {
+  background: #fca5a5;
+}
+
+.action-form {
+  padding: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px dashed #d1d5db;
+}
+
+.action-config {
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.5rem;
+  background: #fafbfc;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-add-action {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  border: 1px dashed #667eea;
+  border-radius: 6px;
+  background: rgba(102, 126, 234, 0.05);
+  color: #667eea;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 0.25rem;
+}
+
+.btn-add-action:hover {
+  background: rgba(102, 126, 234, 0.12);
+  border-color: #4f46e5;
+}
+
+/* Checkbox list for building selection */
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: #374151;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.checkbox-item:hover {
+  background: #f3f4f6;
+}
+
+.checkbox-item input[type="checkbox"] {
+  accent-color: #667eea;
+}
+
+/* Actions display in event list */
+.event-actions-list {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.actions-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.action-display-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
+  font-size: 0.78rem;
+}
+
+.action-badge-sm {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  color: #6d28d9;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.action-summary-sm {
+  color: #6b7280;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-anim-badge-sm {
+  font-size: 0.65rem;
+  padding: 0.05rem 0.25rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  white-space: nowrap;
 }
 </style>

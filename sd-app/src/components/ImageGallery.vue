@@ -594,7 +594,7 @@ const downloadImage = (image) => {
 }
 
 const deleteImage = (id) => {
-  if (confirm('Naozaj chcete vymazať tento obrázok?')) {
+  if (confirm('Are you sure you want to delete this image?')) {
     emit('delete', id)
     if (selectedImage.value?.id === id) {
       closeModal()
@@ -622,7 +622,7 @@ const placeOnBoard = () => {
 }
 
 const formatDate = (date) => {
-  return new Date(date).toLocaleString('sk-SK')
+  return new Date(date).toLocaleString('en-US')
 }
 
 // Building management functions
@@ -756,14 +756,14 @@ const handleReplaceImage = async (event) => {
   
   // Kontrola veľkosti súboru (max 10MB)
   if (file.size > 10 * 1024 * 1024) {
-    alert('Obrázok je príliš veľký (max 10MB)')
+    alert('Image is too large (max 10MB)')
     event.target.value = ''
     return
   }
   
   // Kontrola typu súboru
   if (!file.type.startsWith('image/')) {
-    alert('Súbor nie je obrázok')
+    alert('File is not an image')
     event.target.value = ''
     return
   }
@@ -810,7 +810,7 @@ defineExpose({
       @click="selectedGridSize = 1" 
       :class="{ active: selectedGridSize === 1 }"
       class="size-btn"
-      title="1 políčko (1x1)"
+      title="1 tile (1x1)"
     >
       1
     </button>
@@ -818,7 +818,7 @@ defineExpose({
       @click="selectedGridSize = 4" 
       :class="{ active: selectedGridSize === 4 }"
       class="size-btn"
-      title="4 políčka (2x2)"
+      title="4 tiles (2x2)"
     >
       4
     </button>
@@ -826,7 +826,7 @@ defineExpose({
       @click="selectedGridSize = 9" 
       :class="{ active: selectedGridSize === 9 }"
       class="size-btn"
-      title="9 políčok (3x3)"
+      title="9 tiles (3x3)"
     >
       9
     </button>
@@ -834,7 +834,7 @@ defineExpose({
       @click="selectedGridSize = 16" 
       :class="{ active: selectedGridSize === 16 }"
       class="size-btn"
-      title="16 políčok (4x4)"
+      title="16 tiles (4x4)"
     >
       16
     </button>
@@ -842,7 +842,7 @@ defineExpose({
       @click="selectedGridSize = 25" 
       :class="{ active: selectedGridSize === 25 }"
       class="size-btn"
-      title="25 políčok (5x5)"
+      title="25 tiles (5x5)"
     >
       25
     </button>
@@ -850,7 +850,7 @@ defineExpose({
       @click="selectedGridSize = -1" 
       :class="{ active: selectedGridSize === -1, 'delete-btn': true }"
       class="size-btn"
-      title="Režim mazania - kliknite na políčko na šachovnici pre vymazanie"
+      title="Delete mode - click on a tile on the board to delete it"
     >
       🗑️
     </button>
@@ -863,7 +863,7 @@ defineExpose({
       :class="{ active: activeGalleryTab === 'gallery' }"
       class="gallery-tab-btn"
     >
-      🖼️ Galéria
+      🖼️ Gallery
     </button>
     <button 
       @click="activeGalleryTab = 'roads'" 
@@ -876,7 +876,7 @@ defineExpose({
   
   <!-- Opacity control for roads -->
   <div v-if="activeGalleryTab === 'roads'" class="opacity-control">
-    <label for="road-opacity">Priehľadnosť (Opacity):</label>
+    <label for="road-opacity">Opacity:</label>
     <div class="opacity-input-group">
       <input 
         id="road-opacity"
@@ -895,10 +895,10 @@ defineExpose({
   <div v-if="activeGalleryTab === 'roads'" class="person-spawn-controls">
     <label class="person-spawn-checkbox">
       <input type="checkbox" v-model="spawnPersonsEnabled" />
-      <span>Pridať osoby pri položení road</span>
+      <span>Add people when placing road</span>
     </label>
     <div class="person-count-input">
-      <label for="persons-per-placement">Počet osôb:</label>
+      <label for="persons-per-placement">Number of people:</label>
       <input
         id="persons-per-placement"
         type="number"
@@ -914,10 +914,10 @@ defineExpose({
   <div v-if="activeGalleryTab === 'roads'" class="car-spawn-controls">
     <label class="car-spawn-checkbox">
       <input type="checkbox" v-model="spawnCarsEnabled" />
-      <span>Pridať autá pri položení road</span>
+      <span>Add cars when placing road</span>
     </label>
     <div class="car-count-input">
-      <label for="cars-per-placement">Počet áut:</label>
+      <label for="cars-per-placement">Number of cars:</label>
       <input
         id="cars-per-placement"
         type="number"
@@ -934,8 +934,8 @@ defineExpose({
     <!-- Gallery tab content -->
     <template v-if="activeGalleryTab === 'gallery'">
       <div v-if="images.length === 0" class="empty-state">
-        <p>📷 Zatiaľ nemáte žiadne vygenerované obrázky</p>
-        <p>Začnite generovaním svojho prvého obrázka!</p>
+        <p>📷 No generated images yet</p>
+        <p>Start by generating your first image!</p>
       </div>
 
       <div v-else class="gallery-grid">
@@ -964,7 +964,7 @@ defineExpose({
     <!-- Roads tab content -->
     <template v-else-if="activeGalleryTab === 'roads'">
       <div v-if="roadTiles.length === 0" class="empty-state">
-        <p>⏳ Načítavam road tiles...</p>
+        <p>⏳ Loading road tiles...</p>
       </div>
       
       <div v-else class="roads-grid">
@@ -1006,7 +1006,7 @@ defineExpose({
             </div>
             
             <div v-if="selectedImage.negativePrompt" class="info-section">
-              <h3>Negatívny prompt:</h3>
+              <h3>Negative prompt:</h3>
               <p>{{ selectedImage.negativePrompt }}</p>
             </div>
             
@@ -1025,7 +1025,7 @@ defineExpose({
             </div>
             
             <div class="info-section">
-              <h3>Vytvorené:</h3>
+              <h3>Created:</h3>
               <p>{{ formatDate(selectedImage.timestamp) }}</p>
             </div>
 
@@ -1053,7 +1053,7 @@ defineExpose({
               <div class="building-header">
                 <label class="building-checkbox">
                   <input type="checkbox" v-model="isBuilding" />
-                  <span>Je to budova?</span>
+                  <span>Is it a building?</span>
                 </label>
                 
                 <label v-if="isBuilding" class="building-checkbox" style="margin-top: 0.5rem;">
@@ -1090,7 +1090,7 @@ defineExpose({
                   </button>
                   
                   <div v-if="destinationTiles.length > 0" class="destination-info">
-                    <span>✅ {{ destinationTiles.length }} tiles nastavených</span>
+                    <span>✅ {{ destinationTiles.length }} tiles set</span>
                   </div>
                 </div>
               </div>
@@ -1098,35 +1098,35 @@ defineExpose({
               <div v-if="isBuilding" class="building-details">
                 <!-- Názov budovy -->
                 <div class="building-name-input">
-                  <label for="building-name">🏗️ Názov budovy:</label>
+                  <label for="building-name">🏗️ Building name:</label>
                   <input 
                     id="building-name"
                     v-model="buildingName" 
                     type="text" 
-                    placeholder="Napr. Dřevorubecká chatrná, Občiansky dom..."
+                    placeholder="E.g. Lumber cabin, Town house..."
                     class="name-input"
                   />
                 </div>
 
                 <!-- Effects -->
                 <div class="building-subsection">
-                  <h4>✨ Efekty (Effects)</h4>
+                  <h4>✨ Effects</h4>
                   <label class="shadow-checkbox">
                     <input 
                       type="checkbox" 
                       v-model="hasSmokeEffect"
                     />
-                    <span>💨 Dym (Smoke Effect)</span>
+                    <span>💨 Smoke Effect</span>
                   </label>
                   <label class="shadow-checkbox" style="margin-top: 0.75rem;">
                     <input 
                       type="checkbox" 
                       v-model="hasFlyAwayEffect"
                     />
-                    <span>🛫 Fly away efekt (5s)</span>
+                    <span>🛫 Fly away effect (5s)</span>
                   </label>
                   <div v-if="hasSmokeEffect" class="smoke-speed-control">
-                    <label for="smoke-speed">⚡ Rýchlosť dymu:</label>
+                    <label for="smoke-speed">⚡ Smoke speed:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="smoke-speed"
@@ -1141,7 +1141,7 @@ defineExpose({
                     </div>
                   </div>
                   <div v-if="hasSmokeEffect" class="smoke-speed-control">
-                    <label for="smoke-scale">📏 Veľkosť dymu:</label>
+                    <label for="smoke-scale">📏 Smoke size:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="smoke-scale"
@@ -1156,7 +1156,7 @@ defineExpose({
                     </div>
                   </div>
                   <div v-if="hasSmokeEffect" class="smoke-speed-control">
-                    <label for="smoke-alpha">👁️ Priehľadnosť dymu:</label>
+                    <label for="smoke-alpha">👁️ Smoke opacity:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="smoke-alpha"
@@ -1171,7 +1171,7 @@ defineExpose({
                     </div>
                   </div>
                   <div v-if="hasSmokeEffect" class="smoke-speed-control">
-                    <label for="smoke-tint">🎨 Tmavosť dymu:</label>
+                    <label for="smoke-tint">🎨 Smoke darkness:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="smoke-tint"
@@ -1191,10 +1191,10 @@ defineExpose({
                 <div class="building-subsection">
                   <label class="smoke-checkbox-label">
                     <input type="checkbox" v-model="hasLightEffect" />
-                    <span>💡 Blikajúce svetlo</span>
+                    <span>💡 Blinking light</span>
                   </label>
                   <div v-if="hasLightEffect" class="smoke-speed-control">
-                    <label for="light-blink-speed">⚡ Rýchlosť blikania:</label>
+                    <label for="light-blink-speed">⚡ Blink speed:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="light-blink-speed"
@@ -1209,7 +1209,7 @@ defineExpose({
                     </div>
                   </div>
                   <div v-if="hasLightEffect" class="smoke-speed-control">
-                    <label for="light-color">🌈 Farba svetla:</label>
+                    <label for="light-color">🌈 Light color:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="light-color"
@@ -1221,7 +1221,7 @@ defineExpose({
                     </div>
                   </div>
                   <div v-if="hasLightEffect" class="smoke-speed-control">
-                    <label for="light-size">📏 Veľkosť svetla:</label>
+                    <label for="light-size">📏 Light size:</label>
                     <div class="smoke-speed-input-group">
                       <input 
                         id="light-size"
@@ -1239,10 +1239,10 @@ defineExpose({
 
                 <!-- Need for build -->
                 <div class="building-subsection">
-                  <h4>🔨 Potrebné na stavbu (Need for build)</h4>
+                  <h4>🔨 Build cost</h4>
                   <div class="resource-input-group">
                     <select v-model="selectedBuildResource" class="resource-select">
-                      <option value="">Vyberte resource...</option>
+                      <option value="">Select resource...</option>
                       <option v-for="resource in resources" :key="resource.id" :value="resource.id">
                         {{ resource.name }}
                       </option>
@@ -1251,7 +1251,7 @@ defineExpose({
                       v-model.number="buildAmount" 
                       type="number" 
                       min="1" 
-                      placeholder="Počet"
+                      placeholder="Amount"
                       class="amount-input"
                     />
                     <button @click="addBuildResource" class="btn-add-resource" type="button">
@@ -1269,10 +1269,10 @@ defineExpose({
 
                 <!-- Need for operational -->
                 <div class="building-subsection">
-                  <h4>⚙️ Potrebné na prevádzku (Need for operational)</h4>
+                  <h4>⚙️ Operational cost</h4>
                   <div class="resource-input-group">
                     <select v-model="selectedOperationalResource" class="resource-select">
-                      <option value="">Vyberte resource...</option>
+                      <option value="">Select resource...</option>
                       <option v-for="resource in resources" :key="resource.id" :value="resource.id">
                         {{ resource.name }}
                       </option>
@@ -1281,7 +1281,7 @@ defineExpose({
                       v-model.number="operationalAmount" 
                       type="number" 
                       min="1" 
-                      placeholder="Počet"
+                      placeholder="Amount"
                       class="amount-input"
                     />
                     <button @click="addOperationalResource" class="btn-add-resource" type="button">
@@ -1304,7 +1304,7 @@ defineExpose({
                     <h4>🚢 Allowed Resources</h4>
                     <div class="resource-input-group">
                       <select v-model="selectedAllowedResource" class="resource-select">
-                        <option value="">Vyberte resource...</option>
+                        <option value="">Select resource...</option>
                         <option v-for="resource in resources" :key="resource.id" :value="resource.id">
                           {{ resource.name }}
                         </option>
@@ -1329,7 +1329,7 @@ defineExpose({
                         v-model.number="portCapacity" 
                         type="number" 
                         min="0" 
-                        placeholder="Kapacita portu"
+                        placeholder="Port capacity"
                         class="name-input"
                       />
                     </div>
@@ -1340,10 +1340,10 @@ defineExpose({
                 <template v-else>
                   <!-- Produce -->
                   <div class="building-subsection">
-                    <h4>📦 Produkuje (Produce)</h4>
+                    <h4>📦 Production</h4>
                     <div class="resource-input-group">
                       <select v-model="selectedProductionResource" class="resource-select">
-                        <option value="">Vyberte resource...</option>
+                        <option value="">Select resource...</option>
                         <option v-for="resource in resources" :key="resource.id" :value="resource.id">
                           {{ resource.name }}
                         </option>
@@ -1352,7 +1352,7 @@ defineExpose({
                         v-model.number="productionAmount" 
                         type="number" 
                         min="1" 
-                        placeholder="Počet"
+                        placeholder="Amount"
                         class="amount-input"
                       />
                       <button @click="addProductionResource" class="btn-add-resource" type="button">
@@ -1370,10 +1370,10 @@ defineExpose({
 
                   <!-- Stored -->
                   <div class="building-subsection">
-                    <h4>🏚️ Skladované (Stored)</h4>
+                    <h4>🏚️ Stored</h4>
                     <div class="resource-input-group">
                       <select v-model="selectedStoredResource" class="resource-select">
-                        <option value="">Vyberte resource...</option>
+                        <option value="">Select resource...</option>
                         <option v-for="resource in resources" :key="resource.id" :value="resource.id">
                           {{ resource.name }}
                         </option>
@@ -1382,7 +1382,7 @@ defineExpose({
                         v-model.number="storedAmount" 
                         type="number" 
                         min="1" 
-                        placeholder="Počet"
+                        placeholder="Amount"
                         class="amount-input"
                       />
                       <button @click="addStoredResource" class="btn-add-resource" type="button">
@@ -1410,13 +1410,13 @@ defineExpose({
                 style="display: none;"
               />
               <label for="replace-image-input" class="btn-replace">
-                🔄 Nahradiť obrázok
+                🔄 Replace image
               </label>
               <button @click="downloadImage(selectedImage)" class="btn-download">
-                💾 Stiahnuť
+                💾 Download
               </button>
               <button @click="deleteImage(selectedImage.id)" class="btn-delete">
-                🗑️ Vymazať
+                🗑️ Delete
               </button>
             </div>
           </div>

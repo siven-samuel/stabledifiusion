@@ -177,13 +177,13 @@ const handleIconUpload = async (id, event) => {
   
   // Skontroluj či je to obrázok
   if (!file.type.startsWith('image/')) {
-    alert('Prosím nahrajte obrázok (PNG, JPG, atď.)')
+    alert('Please upload an image (PNG, JPG, etc.)')
     return
   }
   
   // Limit 500KB
   if (file.size > 500000) {
-    alert('Obrázok je príliš veľký. Maximum je 500KB.')
+    alert('Image is too large. Maximum is 500KB.')
     return
   }
   
@@ -265,18 +265,18 @@ const toggleMustBeStored = (id) => {
           <input
             v-model="newResourceName"
             type="text"
-            placeholder="Názov resource..."
+            placeholder="Resource name..."
             @keyup.enter="addResource"
             maxlength="50"
           />
           <button @click="addResource" class="btn-add">
-            ➕ Pridať
+            ➕ Add
           </button>
       </div>
       
       <div class="items-list">
         <div v-if="resources.length === 0" class="empty-state">
-          <p>Zatiaľ žiadne resources</p>
+          <p>No resources yet</p>
         </div>
         
         <div 
@@ -296,15 +296,15 @@ const toggleMustBeStored = (id) => {
         >
           <div class="item-content">
             <!-- Drag handle -->
-            <div class="drag-handle" title="Potiahni pre zoradenie">⠿</div>
-            <!-- Ikonka -->
+            <div class="drag-handle" title="Drag to reorder">⠿</div>
+            <!-- Icon -->
             <div class="icon-wrapper">
               <div v-if="resource.icon" class="icon-preview">
                 <img :src="resource.icon" :alt="resource.name" />
                 <button 
                   @click="removeIcon(resource.id)"
                   class="btn-remove-icon"
-                  title="Odstrániť ikonku"
+                  title="Remove icon"
                 >
                   ✕
                 </button>
@@ -339,7 +339,7 @@ const toggleMustBeStored = (id) => {
             </span>
             
             <div class="item-controls">
-              <label class="work-resource-toggle" :title="'Work Resource: ' + (resource.workResource ? 'Áno' : 'Nie')">
+              <label class="work-resource-toggle" :title="'Work Resource: ' + (resource.workResource ? 'Yes' : 'No')">
                 <input
                   type="checkbox"
                   :checked="resource.workResource"
@@ -348,7 +348,7 @@ const toggleMustBeStored = (id) => {
                 />
                 <span class="work-label">👷 Work</span>
               </label>
-              <label v-if="resource.workResource" class="work-resource-toggle vehicle-toggle" :title="'Vehicle Animation: ' + (resource.vehicleAnimation ? 'Áno' : 'Nie')">
+              <label v-if="resource.workResource" class="work-resource-toggle vehicle-toggle" :title="'Vehicle Animation: ' + (resource.vehicleAnimation ? 'Yes' : 'No')">
                 <input
                   type="checkbox"
                   :checked="resource.vehicleAnimation"
@@ -357,7 +357,7 @@ const toggleMustBeStored = (id) => {
                 />
                 <span class="work-label">🚗 Vehicle</span>
               </label>
-              <label v-if="resource.workResource" class="work-resource-toggle person-toggle" :title="'Person Animation: ' + (resource.personAnimation ? 'Áno' : 'Nie')">
+              <label v-if="resource.workResource" class="work-resource-toggle person-toggle" :title="'Person Animation: ' + (resource.personAnimation ? 'Yes' : 'No')">
                 <input
                   type="checkbox"
                   :checked="resource.personAnimation"
@@ -366,7 +366,7 @@ const toggleMustBeStored = (id) => {
                 />
                 <span class="work-label">🧑 Person</span>
               </label>
-              <label class="work-resource-toggle stored-toggle" :title="'Must Be Stored: ' + (resource.mustBeStored ? 'Áno' : 'Nie')">
+              <label class="work-resource-toggle stored-toggle" :title="'Must Be Stored: ' + (resource.mustBeStored ? 'Yes' : 'No')">
                 <input
                   type="checkbox"
                   :checked="resource.mustBeStored"
@@ -400,7 +400,7 @@ const toggleMustBeStored = (id) => {
               <button 
                 @click="deleteResource(resource.id)" 
                 class="btn-delete"
-                title="Vymazať"
+                title="Delete"
               >
                 🗑️
               </button>
@@ -416,18 +416,18 @@ const toggleMustBeStored = (id) => {
           <input
             v-model="newComponentName"
             type="text"
-            placeholder="Názov component..."
+            placeholder="Component name..."
             @keyup.enter="addComponent"
             maxlength="50"
           />
           <button @click="addComponent" class="btn-add">
-            ➕ Pridať
+            ➕ Add
           </button>
       </div>
       
       <div class="items-list">
         <div v-if="components.length === 0" class="empty-state">
-          <p>Zatiaľ žiadne components</p>
+          <p>No components yet</p>
         </div>
         
         <div 
@@ -447,15 +447,15 @@ const toggleMustBeStored = (id) => {
         >
           <div class="item-content">
             <!-- Drag handle -->
-            <div class="drag-handle" title="Potiahni pre zoradenie">⠿</div>
-            <!-- Ikonka -->
+            <div class="drag-handle" title="Drag to reorder">⠿</div>
+            <!-- Icon -->
             <div class="icon-wrapper">
               <div v-if="component.icon" class="icon-preview">
                 <img :src="component.icon" :alt="component.name" />
                 <button 
                   @click="removeIcon(component.id)"
                   class="btn-remove-icon"
-                  title="Odstrániť ikonku"
+                  title="Remove icon"
                 >
                   ✕
                 </button>
@@ -490,7 +490,7 @@ const toggleMustBeStored = (id) => {
             </span>
             
             <div class="item-controls">
-              <label class="work-resource-toggle" :title="'Work Resource: ' + (component.workResource ? 'Áno' : 'Nie')">
+              <label class="work-resource-toggle" :title="'Work Resource: ' + (component.workResource ? 'Yes' : 'No')">
                 <input
                   type="checkbox"
                   :checked="component.workResource"
@@ -499,7 +499,7 @@ const toggleMustBeStored = (id) => {
                 />
                 <span class="work-label">👷 Work</span>
               </label>
-              <label class="work-resource-toggle stored-toggle" :title="'Must Be Stored: ' + (component.mustBeStored ? 'Áno' : 'Nie')">
+              <label class="work-resource-toggle stored-toggle" :title="'Must Be Stored: ' + (component.mustBeStored ? 'Yes' : 'No')">
                 <input
                   type="checkbox"
                   :checked="component.mustBeStored"
@@ -533,7 +533,7 @@ const toggleMustBeStored = (id) => {
               <button 
                 @click="deleteResource(component.id)" 
                 class="btn-delete"
-                title="Vymazať"
+                title="Delete"
               >
                 🗑️
               </button>

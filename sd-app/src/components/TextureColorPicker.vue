@@ -167,12 +167,12 @@ watch(perspective, async (newValue) => {
 
 <template>
   <div class="texture-picker">
-    <label class="title">🌿 Predvolená textúra</label>
+    <label class="title">🌿 Default Texture</label>
     
     <div class="texture-preview-container">
       <img 
         :src="texturePath" 
-        alt="Predvolená textúra"
+        alt="Default texture"
         class="texture-preview-img"
         :style="filterStyle"
       />
@@ -180,7 +180,7 @@ watch(perspective, async (newValue) => {
     
     <!-- Náhľad opakovanej textúry -->
     <div class="tiled-preview-section">
-      <label class="preview-label">👁️ Náhľad súvislosti</label>
+      <label class="preview-label">👁️ Seamless Preview</label>
       <div 
         class="tiled-preview"
         :style="{
@@ -191,12 +191,12 @@ watch(perspective, async (newValue) => {
         }"
       >
       </div>
-      <p class="preview-hint">Textúra zopakovaná - skontrolujte súvislé prechody</p>
+      <p class="preview-hint">Texture repeated - check for seamless transitions</p>
     </div>
     
     <div class="color-controls">
       <div class="color-slider">
-        <label>🎨 Farebný tón: {{ hueRotation }}°</label>
+        <label>🎨 Hue: {{ hueRotation }}°</label>
         <input
           type="range"
           v-model.number="hueRotation"
@@ -209,7 +209,7 @@ watch(perspective, async (newValue) => {
       </div>
       
       <div class="color-slider">
-        <label>💧 Sýtosť: {{ saturation }}%</label>
+        <label>💧 Saturation: {{ saturation }}%</label>
         <input
           type="range"
           v-model.number="saturation"
@@ -221,7 +221,7 @@ watch(perspective, async (newValue) => {
       </div>
       
       <div class="color-slider">
-        <label>☀️ Jas: {{ brightness }}%</label>
+        <label>☀️ Brightness: {{ brightness }}%</label>
         <input
           type="range"
           v-model.number="brightness"
@@ -233,7 +233,7 @@ watch(perspective, async (newValue) => {
       </div>
       
       <div class="color-slider">
-        <label>🔲 Veľkosť textúry: {{ tilesPerImage }}x{{ tilesPerImage }} políčok</label>
+        <label>🔲 Texture Size: {{ tilesPerImage }}x{{ tilesPerImage }} tiles</label>
         <input
           type="range"
           v-model.number="tilesPerImage"
@@ -245,7 +245,7 @@ watch(perspective, async (newValue) => {
       </div>
       
       <div class="color-slider">
-        <label>📐 Rozlíšenie tile: {{ tileResolution }}x{{ tileResolution }}px</label>
+        <label>📐 Tile Resolution: {{ tileResolution }}x{{ tileResolution }}px</label>
         <input
           type="range"
           v-model.number="tileResolution"
@@ -257,7 +257,7 @@ watch(perspective, async (newValue) => {
       </div>
       
       <div class="color-slider">
-        <label>🔭 Perspektíva: {{ perspective }}% (roztiahnutie)</label>
+        <label>🔭 Perspective: {{ perspective }}% (stretch)</label>
         <input
           type="range"
           v-model.number="perspective"
@@ -275,7 +275,7 @@ watch(perspective, async (newValue) => {
         :disabled="disabled"
         class="btn-apply"
       >
-        ✅ Použiť
+        ✅ Apply
       </button>
       <button 
         @click="resetColors" 

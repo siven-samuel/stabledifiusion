@@ -85,6 +85,13 @@ const ignoreResourceCheck = ref(false) // Checkbox pre ignorovanie kontroly reso
 const gameEvents = ref([]) // Zoznam herných eventov
 const manuallyStoppedBuildings = ref({}) // Budovy manuálne zastavené používateľom: { 'row-col': true }
 const consumptionMap = ref({}) // Mapa spotreby surovín pre priority service: { resourceId: [{ key, row, col, buildingName, consumption, buildingData }] }
+const productionMap = ref({}) // Mapa produkcie surovín pre priority service: { resourceId: [{ key, row, col, production, buildingData }] }
+
+// Event trigger system
+const showEventModal = ref(false) // Whether the event modal is shown
+const triggeredEvent = ref(null) // Currently triggered event data
+const firedEventIds = ref(new Set()) // IDs of already fired events (fire once per session)
+const eventQueue = ref([]) // Queue of events waiting to be shown
 
 // Filtrované budovy z galérie (zoradené podľa buildingOrder)
 const buildings = computed(() => {
@@ -243,11 +250,13 @@ watch(roadTiles, (newTiles, oldTiles) => {
 
 // Funkcia na prebudovanie mapy spotreby surovín (volá sa pri zmene budov na canvase)
 const rebuildConsumptionMap = () => {
-  consumptionMap.value = buildConsumptionMap(
+  const result = buildConsumptionMap(
     canvasImagesMap.value, images.value, buildingProductionStates.value,
     animatingBuildings.value, resources.value
   )
-  console.log('📊 Consumption map prebudovaná, surovín:', Object.keys(consumptionMap.value).length)
+  consumptionMap.value = result.consumptionMap
+  productionMap.value = result.productionMap
+  console.log('📊 Consumption map prebudovaná, surovín:', Object.keys(consumptionMap.value).length, ', produkcia:', Object.keys(productionMap.value).length)
 }
 
 // Periodická kontrola zdrojov - každé 3 sekundy (namiesto deep watch na resources)
@@ -272,17 +281,18 @@ const resourceCheckInterval = setInterval(() => {
     }
   }
 
-  // Použi priority service na vyhodnotenie
-  const { toStop, toRestart } = evaluateResourcePriority(
-    resources.value, consumptionMap.value, buildingProductionStates.value,
+  // Použi priority service na vyhodnotenie (vrátane produkcie surovín)
+  const { toStop, toRestart, stopReasons } = evaluateResourcePriority(
+    resources.value, consumptionMap.value, productionMap.value, buildingProductionStates.value,
     stoppedByResources.value, manuallyStoppedBuildings.value
   )
 
   // Zastavenie budov s najväčšou spotrebou
   for (const key of toStop) {
     const [row, col] = key.split('-').map(Number)
-    console.log(`⛔ Priority stop: Zastavujem budovu [${row}, ${col}] - najväčšia spotreba deficitnej suroviny`)
-    stopAutoProduction(row, col, 'resources')
+    const reasons = stopReasons[key] || []
+    console.log(`⛔ Priority stop: Zastavujem budovu [${row}, ${col}] - najväčšia spotreba deficitnej suroviny`, reasons)
+    stopAutoProduction(row, col, 'resources', reasons)
   }
 
   // Reštart budov ktoré majú teraz dostatok surovín
@@ -341,6 +351,151 @@ watch(resources, (newResources) => {
     prevAnimationAmounts.value[key] = currentAmount
   }
 }, { deep: true })
+
+// ============================================================
+// Game Event Trigger System
+// ============================================================
+
+const MS_PER_GAME_DAY = 60000
+const currentGameDay = computed(() => Math.floor(gameTime.value / MS_PER_GAME_DAY) + 1)
+
+// Fire a game event - show modal and execute actions
+const fireGameEvent = (event) => {
+  if (firedEventIds.value.has(event.id)) return
+  firedEventIds.value.add(event.id)
+  
+  // If modal is already showing, queue this event
+  if (showEventModal.value) {
+    eventQueue.value.push(event)
+    return
+  }
+  
+  triggeredEvent.value = event
+  showEventModal.value = true
+  
+  // Execute event actions
+  executeEventActions(event)
+  
+  console.log(`🎯 Event triggered: "${event.name}"`)
+}
+
+// Execute actions associated with an event
+const executeEventActions = (event) => {
+  if (!event.actions || event.actions.length === 0) return
+  
+  for (const action of event.actions) {
+    switch (action.type) {
+      case 'add_resource': {
+        const res = resources.value.find(r => r.id === action.resourceId)
+        if (res) {
+          res.amount = (res.amount || 0) + (action.amount || 0)
+          console.log(`   ➕ Added ${action.amount} to resource "${res.name}"`)
+        }
+        break
+      }
+      case 'remove_resource': {
+        const res = resources.value.find(r => r.id === action.resourceId)
+        if (res) {
+          res.amount = Math.max(0, (res.amount || 0) - (action.amount || 0))
+          console.log(`   ➖ Removed ${action.amount} from resource "${res.name}"`)
+        }
+        break
+      }
+      case 'show_message':
+        console.log(`   💬 Event message: ${action.message}`)
+        break
+      case 'unlock_building':
+        console.log(`   🔓 Building unlocked: ${action.buildingId}`)
+        break
+    }
+  }
+}
+
+// Close event modal and show next queued event if any
+const closeEventModal = () => {
+  showEventModal.value = false
+  triggeredEvent.value = null
+  
+  // Show next queued event
+  if (eventQueue.value.length > 0) {
+    const nextEvent = eventQueue.value.shift()
+    setTimeout(() => {
+      triggeredEvent.value = nextEvent
+      showEventModal.value = true
+      executeEventActions(nextEvent)
+    }, 300)
+  }
+}
+
+// Check day events when game day changes
+watch(currentGameDay, (newDay, oldDay) => {
+  if (newDay === oldDay) return
+  
+  for (const event of gameEvents.value) {
+    if (!event.enabled || event.trigger !== 'day') continue
+    if (event.triggerConfig?.day === newDay) {
+      fireGameEvent(event)
+    }
+  }
+})
+
+// Check resource events when resources change
+watch(resources, (newResources) => {
+  if (!newResources || newResources.length === 0) return
+  
+  for (const event of gameEvents.value) {
+    if (!event.enabled || event.trigger !== 'resource') continue
+    if (firedEventIds.value.has(event.id)) continue
+    
+    const config = event.triggerConfig
+    if (!config || !config.resourceId) continue
+    
+    const res = newResources.find(r => r.id === config.resourceId)
+    if (!res) continue
+    
+    // Total amount = available + allocated (allocated are already deducted from amount)
+    const allocated = allocatedResources.value[res.id] || 0
+    const amount = (res.amount || 0) + allocated
+    let shouldFire = false
+    
+    switch (config.condition) {
+      case 'reaches':
+        shouldFire = amount >= config.value
+        break
+      case 'drops_below':
+        shouldFire = amount < config.value
+        break
+      case 'exceeds':
+        shouldFire = amount > config.value
+        break
+      case 'equals':
+        shouldFire = amount === config.value
+        break
+    }
+    
+    if (shouldFire) {
+      fireGameEvent(event)
+    }
+  }
+}, { deep: true })
+
+// Check building events - called from building handlers
+const checkBuildingEvents = (conditionType, buildingId = null) => {
+  for (const event of gameEvents.value) {
+    if (!event.enabled || event.trigger !== 'building') continue
+    if (firedEventIds.value.has(event.id)) continue
+    
+    const config = event.triggerConfig
+    if (!config || config.condition !== conditionType) continue
+    
+    // If event specifies a building, check it matches
+    if (config.buildingId && buildingId && config.buildingId !== buildingId) continue
+    
+    fireGameEvent(event)
+  }
+}
+
+// ============================================================
 
 const handleRoadOpacityChanged = (newOpacity) => {
   roadOpacity.value = newOpacity
@@ -445,7 +600,7 @@ const handleCellSelected = ({ row, col }) => {
             })
           }
           insufficientResourcesData.value = {
-            buildingName: selectedImage.buildingData.buildingName || 'Budova',
+            buildingName: selectedImage.buildingData.buildingName || 'Building',
             missingBuildResources: missingBuild,
             missingOperationalResources: resourceCheck.missingOperational
           }
@@ -471,7 +626,7 @@ const handleCellSelected = ({ row, col }) => {
           }
           workforceAllocations.value[availableVehicle.id].push({
             row, col, amount: 1, type: 'build',
-            buildingName: selectedImage.buildingData.buildingName || 'Budova'
+            buildingName: selectedImage.buildingData.buildingName || 'Building'
           })
           allocatedWorkItems.push({
             resourceId: availableVehicle.id,
@@ -650,6 +805,24 @@ const handleLoadProject = async (projectData) => {
               
               if (!hasEnoughWorkforce) {
                 console.log(`  ⚠️ Nedostatok work-force pre obnovenie produkcie na [${row}, ${col}]`)
+                // Zobraz warning indikátor s chýbajúcimi work-force resources
+                const missingResources = []
+                operationalCost.forEach(cost => {
+                  const resource = resources.value.find(r => r.id === cost.resourceId)
+                  if (resource && resource.workResource && resource.amount < cost.amount) {
+                    missingResources.push({
+                      id: cost.resourceId, name: resource?.name || 'Unknown',
+                      icon: resource?.icon || '', needed: cost.amount, available: resource?.amount || 0
+                    })
+                  }
+                })
+                if (missingResources.length > 0) {
+                  canvasRef.value?.showWarningIndicator(row, col, 'resources', missingResources)
+                }
+                canvasRef.value?.showDisabledOverlay(row, col)
+                // Zaregistruj na auto-restart
+                stoppedByResources.value[key] = { row, col, buildingData: state.buildingData }
+                console.log(`🔄 Budova na [${row}, ${col}] zaregistrovaná na auto-restart (workforce)`)
                 return
               }
               
@@ -667,7 +840,7 @@ const handleLoadProject = async (projectData) => {
                   }
                   workforceAllocations.value[cost.resourceId].push({
                     row, col, amount: cost.amount, type: 'production',
-                    buildingName: state.buildingData.buildingName || 'Budova'
+                    buildingName: state.buildingData.buildingName || 'Building'
                   })
                   
                   console.log(`  👷 Obnovené work force (production): ${cost.amount}x ${resource.name} na [${row},${col}], total allocated: ${allocatedResources.value[cost.resourceId]}`)
@@ -751,6 +924,8 @@ const handleLoadProject = async (projectData) => {
                   }
                   delete buildingProductionStates.value[key]
                   canvasRef.value?.hideAutoProductionIndicator(row, col)
+                  // Zobraz disabled overlay (tmavý pulzujúci efekt)
+                  canvasRef.value?.showDisabledOverlay(row, col)
                   // Zaregistruj budovu na auto-restart keď budú suroviny dostupné
                   stoppedByResources.value[key] = { row, col, buildingData: state.buildingData }
                   console.log(`🔄 Budova na [${row}, ${col}] zaregistrovaná na auto-restart`)
@@ -832,6 +1007,12 @@ const handleLoadProject = async (projectData) => {
 const handleUpdateResources = (data) => {
   resources.value = data.resources || []
   workforce.value = data.workforce || []
+}
+
+const handleEffectChanged = (effectName) => {
+  if (canvasRef.value && canvasRef.value.applyEffect) {
+    canvasRef.value.applyEffect(effectName)
+  }
 }
 
 const handleUpdateBuildingData = ({ imageId, buildingData }) => {
@@ -985,7 +1166,7 @@ const startAutoProductionForBuilding = (row, col) => {
       }
       workforceAllocations.value[cost.resourceId].push({
         row, col, amount: cost.amount, type: 'production',
-        buildingName: buildingDataForProduction.buildingName || 'Budova'
+        buildingName: buildingDataForProduction.buildingName || 'Building'
       })
       console.log(`👷 Post-animácia alokované work force: ${cost.amount}x ${resource.name} na [${row},${col}]`)
     }
@@ -1268,7 +1449,7 @@ const handleCanvasUpdated = () => {
               }
               workforceAllocations.value[cost.resourceId].push({
                 row, col, amount: cost.amount, type: 'production',
-                buildingName: buildingDataForProduction.buildingName || 'Budova'
+                buildingName: buildingDataForProduction.buildingName || 'Building'
               })
               
               console.log(`👷 Auto-alokované work force (production): ${cost.amount}x ${resource.name} na [${row},${col}], total allocated: ${allocatedResources.value[cost.resourceId]}`)
@@ -1507,6 +1688,10 @@ const handleBuildingDeleted = ({ row, col, buildingData }) => {
     delete recyclingBuildings.value[key]
     // Prebuduj mapu spotreby surovín
     rebuildConsumptionMap()
+    
+    // Trigger building destroyed event
+    const deletedBuildingId = buildingData?.buildingData?.id || buildingData?.id || null
+    checkBuildingEvents('destroyed', deletedBuildingId)
   }
 }
 
@@ -1532,6 +1717,11 @@ const handleBuildingConstructionComplete = ({ row, col }) => {
   animatingBuildings.value.delete(key)
   delete buildingWorkerCount.value[key] // Vyčisti worker count
   console.log(`✅ Budova ${key} skutočne dokončená, spúšťam auto produkciu`)
+  
+  // Trigger building built event
+  const builtBuildingData = canvasRef.value?.cellImages?.()[key]
+  const builtBuildingId = builtBuildingData?.buildingData?.id || null
+  checkBuildingEvents('built', builtBuildingId)
   
   // Spusti auto produkciu pre túto budovu
   startAutoProductionForBuilding(row, col)
@@ -1571,7 +1761,7 @@ const handleBuildingRecycled = ({ row, col, buildingData, cellsX, cellsY }) => {
       })
     }
     insufficientResourcesData.value = {
-      buildingName: buildingData?.buildingName || 'Budova',
+      buildingName: buildingData?.buildingName || 'Building',
       missingBuildResources: missingBuild,
       missingOperationalResources: []
     }
@@ -1593,7 +1783,7 @@ const handleBuildingRecycled = ({ row, col, buildingData, cellsX, cellsY }) => {
   }
   workforceAllocations.value[vehicleRes.id].push({
     row, col, amount: 1, type: 'recycle',
-    buildingName: buildingData?.buildingName || 'Budova'
+    buildingName: buildingData?.buildingName || 'Building'
   })
 
   // Track pending allocations for cleanup
@@ -1691,7 +1881,7 @@ const changeConstructionWorkers = (newCount) => {
     } else {
       workforceAllocations.value[vehicleRes.id].push({
         row, col, amount: diff, type: 'build',
-        buildingName: clickedBuilding.value.buildingName || 'Budova'
+        buildingName: clickedBuilding.value.buildingName || 'Building'
       })
     }
     
@@ -1808,7 +1998,7 @@ const changeRecycleWorkers = (newCount) => {
     } else {
       workforceAllocations.value[vehicleRes.id].push({
         row, col, amount: diff, type: 'recycle',
-        buildingName: clickedBuilding.value.buildingName || 'Budova'
+        buildingName: clickedBuilding.value.buildingName || 'Building'
       })
     }
     
@@ -1946,7 +2136,7 @@ const removePortPayload = (index) => {
 }
 
 // Zastaviť auto produkciu pre konkrétnu budovu
-const stopAutoProduction = (row, col, reason = 'manual') => {
+const stopAutoProduction = (row, col, reason = 'manual', deficitResources = null) => {
   const key = `${row}-${col}`
   const state = buildingProductionStates.value[key]
   
@@ -2014,7 +2204,7 @@ const stopAutoProduction = (row, col, reason = 'manual') => {
   // Zobraz warning indikátor podľa dôvodu zastavenia
   if (reason === 'resources') {
     // Získaj zoznam chýbajúcich surovín
-    const missingResources = []
+    let missingResources = []
     
     if (buildingData && buildingData.operationalCost) {
       buildingData.operationalCost.forEach(cost => {
@@ -2031,9 +2221,21 @@ const stopAutoProduction = (row, col, reason = 'manual') => {
       })
     }
     
+    // Ak missingResources je prázdny (napr. priority service zastavil budovu preventívne),
+    // použi dôvody z priority service
+    if (missingResources.length === 0 && deficitResources && deficitResources.length > 0) {
+      missingResources = deficitResources.map(dr => ({
+        id: dr.resourceId,
+        name: dr.resourceName || 'Unknown',
+        icon: dr.icon || '',
+        needed: dr.needed,
+        available: dr.available
+      }))
+    }
+    
     console.log('🔍 Chýbajúce suroviny pre warning indikátor:', missingResources)
     
-    // Zobraz indikátor LEN ak máme missing resources
+    // Zobraz warning indikátor ak máme info o chýbajúcich surovinách
     if (missingResources.length > 0) {
       canvasRef.value?.showWarningIndicator(row, col, 'resources', missingResources)
     }
@@ -2144,7 +2346,7 @@ const toggleAutoProduction = () => {
         }
         workforceAllocations.value[cost.resourceId].push({
           row, col, amount: cost.amount, type: 'production',
-          buildingName: buildingData.buildingName || 'Budova'
+          buildingName: buildingData.buildingName || 'Building'
         })
         
         console.log(`👷 Alokované work force (production): ${cost.amount}x ${resource.name}, total allocated: ${allocatedResources.value[cost.resourceId]}`)
@@ -2537,7 +2739,7 @@ const handleReorderBuildings = (newOrder) => {
       <div class="header-left">
         <label class="resource-check-toggle">
           <input type="checkbox" v-model="ignoreResourceCheck" />
-          <span>🚫 Vypnúť kontrolu resources</span>
+          <span>🚫 Disable resource check</span>
         </label>
       </div>
       
@@ -2563,6 +2765,7 @@ const handleReorderBuildings = (newOrder) => {
         @update:showGrid="showGrid = $event"
         @update-resources="handleUpdateResources"
         @update-events="gameEvents = $event"
+        @effect-changed="handleEffectChanged"
       />
     </header>
     
@@ -2607,6 +2810,7 @@ const handleReorderBuildings = (newOrder) => {
         :buildings="buildings"
         :selectedBuildingId="selectedBuildingId"
         :filterResourceId="filterResourceId"
+        :resources="resources"
         @building-selected="handleBuildingSelected"
         @clear-filter="filterResourceId = null"
         @reorder-buildings="handleReorderBuildings"
@@ -2628,28 +2832,28 @@ const handleReorderBuildings = (newOrder) => {
     <!-- Modal s metadátami budovy -->
     <Modal 
       v-if="showBuildingModal && clickedBuilding"
-      :title="clickedBuilding.buildingName || 'Budova'"
+      :title="clickedBuilding.buildingName || 'Building'"
       @close="closeBuildingModal"
     >
       <div class="building-modal-content">
         <!-- Obrázok budovy -->
         <div class="building-image-preview">
-          <img :src="clickedBuilding.imageUrl" alt="Budova" />
+          <img :src="clickedBuilding.imageUrl" alt="Building" />
         </div>
         
         <!-- Základné info -->
         <div class="building-info-section">
-          <h3>Základné informácie</h3>
+          <h3>Basic Information</h3>
           <div class="info-row">
-            <span class="info-label">Názov:</span>
-            <span class="info-value">{{ clickedBuilding.buildingName || 'Bez názvu' }}</span>
+            <span class="info-label">Name:</span>
+            <span class="info-value">{{ clickedBuilding.buildingName || 'Unnamed' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Veľkosť:</span>
+            <span class="info-label">Size:</span>
             <span class="info-value">{{ clickedBuilding.buildingSize || 'default' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Pozícia:</span>
+            <span class="info-label">Position:</span>
             <span class="info-value">[{{ clickedBuilding.row }}, {{ clickedBuilding.col }}]</span>
           </div>
           <div v-if="clickedBuilding.isCommandCenter" class="info-row">
@@ -2664,7 +2868,7 @@ const handleReorderBuildings = (newOrder) => {
         
         <!-- Build Cost -->
         <div v-if="clickedBuilding.buildCost && clickedBuilding.buildCost.length > 0" class="building-info-section">
-          <h3>💰 Náklady na stavbu</h3>
+          <h3>💰 Build Cost</h3>
           <div class="resource-list">
             <div v-for="(cost, index) in clickedBuilding.buildCost" :key="index" class="resource-item">
               <span class="resource-name">{{ cost.resourceName }}</span>
@@ -2675,7 +2879,7 @@ const handleReorderBuildings = (newOrder) => {
         
         <!-- Operational Cost -->
         <div v-if="clickedBuilding.operationalCost && clickedBuilding.operationalCost.length > 0" class="building-info-section">
-          <h3>⚙️ Prevádzkové náklady</h3>
+          <h3>⚙️ Operating Cost</h3>
           <div class="resource-list">
             <div 
               v-for="(cost, index) in clickedBuilding.operationalCost" 
@@ -2693,7 +2897,7 @@ const handleReorderBuildings = (newOrder) => {
         <template v-if="clickedBuilding.isPort">
           <!-- Capacity Progress Bar -->
           <div class="building-info-section">
-            <h3>📊 Kapacita portu</h3>
+            <h3>📊 Port Capacity</h3>
             <div class="port-capacity-section">
               <div class="port-capacity-bar-container">
                 <div 
@@ -2715,7 +2919,7 @@ const handleReorderBuildings = (newOrder) => {
             <!-- Pridanie do payloadu -->
             <div class="payload-add-section">
               <select v-model="selectedPayloadResource" class="payload-select">
-                <option value="" disabled>Vyber resource...</option>
+                <option value="" disabled>Select resource...</option>
                 <option 
                   v-for="ar in (clickedBuilding.allowedResources || [])" 
                   :key="ar.resourceId" 
@@ -2729,14 +2933,14 @@ const handleReorderBuildings = (newOrder) => {
                 v-model.number="payloadAmount" 
                 min="1" 
                 class="payload-amount-input"
-                placeholder="Množstvo"
+                placeholder="Amount"
               />
               <button 
                 class="payload-add-button" 
                 @click="addPortPayload"
                 :disabled="!selectedPayloadResource || payloadAmount <= 0 || portFillPercent >= 100"
               >
-                ➕ Pridať
+                ➕ Add
               </button>
             </div>
             
@@ -2751,87 +2955,87 @@ const handleReorderBuildings = (newOrder) => {
                 <button class="payload-remove-button" @click="removePortPayload(index)">✕</button>
               </div>
             </div>
-            <p v-else class="payload-empty">Žiadny náklad</p>
+            <p v-else class="payload-empty">No cost</p>
           </div>
           
           <!-- Port Production Controls - len jednorázový cyklus, bez auto -->
           <div v-if="currentBuildingAnimState === 'recycling-waiting' || currentBuildingAnimState === 'recycling'" class="building-info-section">
             <template v-if="currentBuildingAnimState === 'recycling-waiting'">
-              <h3>♻️🚚 Čaká na pracovnú silu...</h3>
+              <h3>♻️🚚 Waiting for workforce...</h3>
               <div class="build-in-progress recycle-in-progress">
                 <div class="build-progress-animation waiting recycle">
                   <div class="build-progress-bar waiting-bar recycle-bar"></div>
                 </div>
-                <p class="build-progress-text">Čaká sa na príchod auta. Recyklácia začne po príchode.</p>
+                <p class="build-progress-text">Waiting for vehicle arrival. Recycling will begin upon arrival.</p>
                 <div class="worker-count-section">
-                  <label>🚗 Vozidlá:</label>
+                  <label>🚗 Vehicles:</label>
                   <div class="worker-count-controls">
                     <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeRecycleWorkers(currentBuildingWorkers - 1)">−</button>
                     <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                     <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeRecycleWorkers(currentBuildingWorkers + 1)">+</button>
                   </div>
-                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
                 </div>
               </div>
             </template>
             <template v-else>
-              <h3>♻️ Recyklácia prebieha...</h3>
+              <h3>♻️ Recycling in progress...</h3>
               <div class="build-in-progress recycle-in-progress">
                 <div class="build-progress-animation recycle">
                   <div class="build-progress-bar recycle-bar"></div>
                 </div>
-                <p class="build-progress-text">Budova sa rozoberá. Suroviny sa vrátia po dokončení.</p>
+                <p class="build-progress-text">Building is being dismantled. Resources will be returned upon completion.</p>
                 <div class="worker-count-section">
-                  <label>🚗 Vozidlá:</label>
+                  <label>🚗 Vehicles:</label>
                   <div class="worker-count-controls">
                     <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeRecycleWorkers(currentBuildingWorkers - 1)">−</button>
                     <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                     <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeRecycleWorkers(currentBuildingWorkers + 1)">+</button>
                   </div>
-                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
                 </div>
               </div>
             </template>
           </div>
           <div v-else-if="(clickedBuilding.production && clickedBuilding.production.length > 0) || (clickedBuilding.operationalCost && clickedBuilding.operationalCost.length > 0)" class="building-info-section">
             <template v-if="currentBuildingAnimState === 'waiting'">
-              <h3>🚚 Čaká na pracovnú silu...</h3>
+              <h3>🚚 Waiting for workforce...</h3>
               <div class="build-in-progress">
                 <div class="build-progress-animation waiting">
                   <div class="build-progress-bar waiting-bar"></div>
                 </div>
-                <p class="build-progress-text">Čaká sa na príchod pracovnej sily.</p>
+                <p class="build-progress-text">Waiting for workforce arrival.</p>
                 <div class="worker-count-section">
-                  <label>👷 Pracovníci:</label>
+                  <label>👷 Workers:</label>
                   <div class="worker-count-controls">
                     <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeConstructionWorkers(currentBuildingWorkers - 1)">−</button>
                     <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                     <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeConstructionWorkers(currentBuildingWorkers + 1)">+</button>
                   </div>
-                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
                 </div>
               </div>
             </template>
             <template v-else-if="currentBuildingAnimState === 'building'">
-              <h3>🏗️ Stavba prebieha...</h3>
+              <h3>🏗️ Construction in progress...</h3>
               <div class="build-in-progress">
                 <div class="build-progress-animation">
                   <div class="build-progress-bar"></div>
                 </div>
-                <p class="build-progress-text">Budova sa stavia.</p>
+                <p class="build-progress-text">Building is under construction.</p>
                 <div class="worker-count-section">
-                  <label>👷 Pracovníci:</label>
+                  <label>👷 Workers:</label>
                   <div class="worker-count-controls">
                     <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeConstructionWorkers(currentBuildingWorkers - 1)">−</button>
                     <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                     <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeConstructionWorkers(currentBuildingWorkers + 1)">+</button>
                   </div>
-                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                  <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
                 </div>
               </div>
             </template>
             <template v-else>
-              <h3>⚙️ Ovládanie portu</h3>
+              <h3>⚙️ Port Controls</h3>
               <div class="production-controls">
                 <button 
                   class="production-button"
@@ -2839,16 +3043,16 @@ const handleReorderBuildings = (newOrder) => {
                   :disabled="!canStartProduction() || portPayload.length === 0"
                   @click="startPortProduction"
                 >
-                  <span v-if="!canStartProduction()">⛔ Nedostatok resources</span>
-                  <span v-else-if="portPayload.length === 0">📦 Prázdny payload</span>
-                  <span v-else>▶️ Štart</span>
+                  <span v-if="!canStartProduction()">⛔ Insufficient resources</span>
+                  <span v-else-if="portPayload.length === 0">📦 Empty payload</span>
+                  <span v-else>▶️ Start</span>
                 </button>
               </div>
               <p v-if="!canStartProduction()" class="production-warning">
-                ⚠️ Nemáte dostatok resources na prevádzku!
+                ⚠️ You don't have enough resources for operation!
               </p>
               <p v-else-if="portPayload.length === 0" class="production-warning">
-                📦 Pridajte resources do payloadu pred spustením.
+                📦 Add resources to payload before starting.
               </p>
             </template>
           </div>
@@ -2858,7 +3062,7 @@ const handleReorderBuildings = (newOrder) => {
         <template v-else>
         <!-- Stored (Sklad) -->
         <div v-if="clickedBuilding.stored && clickedBuilding.stored.length > 0" class="building-info-section">
-          <h3>🏪 Skladovacia kapacita</h3>
+          <h3>🏪 Storage Capacity</h3>
           <div class="resource-list">
             <div v-for="(store, index) in clickedBuilding.stored" :key="index" class="resource-item stored">
               <span class="resource-name">{{ store.resourceName }}</span>
@@ -2869,7 +3073,7 @@ const handleReorderBuildings = (newOrder) => {
         
         <!-- Production -->
         <div v-if="clickedBuilding.production && clickedBuilding.production.length > 0" class="building-info-section">
-          <h3>📦 Produkcia</h3>
+          <h3>📦 Production</h3>
           <div class="resource-list">
             <div v-for="(prod, index) in clickedBuilding.production" :key="index" class="resource-item production">
               <span class="resource-name">{{ prod.resourceName }}</span>
@@ -2882,47 +3086,47 @@ const handleReorderBuildings = (newOrder) => {
         <div v-if="currentBuildingAnimState === 'recycling-waiting' || currentBuildingAnimState === 'recycling'" class="building-info-section">
           <!-- Recyklácia - čaká na auto -->
           <template v-if="currentBuildingAnimState === 'recycling-waiting'">
-            <h3>♻️🚚 Čaká na pracovnú silu...</h3>
+            <h3>♻️🚚 Waiting for workforce...</h3>
             <div class="build-in-progress recycle-in-progress">
               <div class="build-progress-animation waiting recycle">
                 <div class="build-progress-bar waiting-bar recycle-bar"></div>
               </div>
-              <p class="build-progress-text">Čaká sa na príchod auta. Recyklácia začne po príchode.</p>
+              <p class="build-progress-text">Waiting for vehicle arrival. Recycling will begin upon arrival.</p>
               <div class="worker-count-section">
-                <label>🚗 Vozidlá:</label>
+                <label>🚗 Vehicles:</label>
                 <div class="worker-count-controls">
                   <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeRecycleWorkers(currentBuildingWorkers - 1)">−</button>
                   <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                   <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeRecycleWorkers(currentBuildingWorkers + 1)">+</button>
                 </div>
-                <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
               </div>
             </div>
           </template>
           
           <!-- Recyklácia prebieha -->
           <template v-else>
-            <h3>♻️ Recyklácia prebieha...</h3>
+            <h3>♻️ Recycling in progress...</h3>
             <div class="build-in-progress recycle-in-progress">
               <div class="build-progress-animation recycle">
                 <div class="build-progress-bar recycle-bar"></div>
               </div>
-              <p class="build-progress-text">Budova sa rozoberá. Suroviny (okrem work-force) sa vrátia po dokončení.</p>
+              <p class="build-progress-text">Building is being dismantled. Resources (except workforce) will be returned upon completion.</p>
               <div class="worker-count-section">
-                <label>🚗 Vozidlá:</label>
+                <label>🚗 Vehicles:</label>
                 <div class="worker-count-controls">
                   <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeRecycleWorkers(currentBuildingWorkers - 1)">−</button>
                   <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                   <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeRecycleWorkers(currentBuildingWorkers + 1)">+</button>
                 </div>
-                <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
               </div>
             </div>
           </template>
           
           <!-- Suroviny ktoré sa vrátia -->
           <div v-if="clickedBuilding.buildCost && clickedBuilding.buildCost.length > 0" class="recycle-refund-info">
-            <h4>📦 Vrátené suroviny po recyklácii:</h4>
+            <h4>📦 Returned resources after recycling:</h4>
             <div class="resource-list">
               <div v-for="(cost, index) in clickedBuilding.buildCost" :key="index" class="resource-item"
                 :class="{ 'work-resource-strike': isWorkResource(cost.resourceId) }">
@@ -2938,48 +3142,48 @@ const handleReorderBuildings = (newOrder) => {
           
           <!-- Čaká na pracovnú silu -->
           <template v-if="currentBuildingAnimState === 'waiting'">
-            <h3>🚚 Čaká na pracovnú silu...</h3>
+            <h3>🚚 Waiting for workforce...</h3>
             <div class="build-in-progress">
               <div class="build-progress-animation waiting">
                 <div class="build-progress-bar waiting-bar"></div>
               </div>
-              <p class="build-progress-text">Čaká sa na príchod pracovnej sily. Stavba začne po príchode auta.</p>
+              <p class="build-progress-text">Waiting for workforce arrival. Construction will begin upon vehicle arrival.</p>
               <div class="worker-count-section">
-                <label>👷 Pracovníci:</label>
+                <label>👷 Workers:</label>
                 <div class="worker-count-controls">
                   <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeConstructionWorkers(currentBuildingWorkers - 1)">−</button>
                   <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                   <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeConstructionWorkers(currentBuildingWorkers + 1)">+</button>
                 </div>
-                <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
               </div>
             </div>
           </template>
           
           <!-- Stavba prebieha -->
           <template v-else-if="currentBuildingAnimState === 'building'">
-            <h3>🏗️ Stavba prebieha...</h3>
+            <h3>🏗️ Construction in progress...</h3>
             <div class="build-in-progress">
               <div class="build-progress-animation">
                 <div class="build-progress-bar"></div>
               </div>
-              <p class="build-progress-text">Budova sa stavia. Produkcia sa spustí automaticky po dokončení stavby.</p>
+              <p class="build-progress-text">Building is under construction. Production will start automatically after completion.</p>
               <div class="worker-count-section">
-                <label>👷 Pracovníci:</label>
+                <label>👷 Workers:</label>
                 <div class="worker-count-controls">
                   <button class="worker-btn" :disabled="currentBuildingWorkers <= 1" @click="changeConstructionWorkers(currentBuildingWorkers - 1)">−</button>
                   <span class="worker-count-value">{{ currentBuildingWorkers }}</span>
                   <button class="worker-btn" :disabled="currentBuildingWorkers >= maxBuildingWorkers" @click="changeConstructionWorkers(currentBuildingWorkers + 1)">+</button>
                 </div>
-                <span class="worker-speed-info">{{ currentBuildingWorkers }}× rýchlosť</span>
+                <span class="worker-speed-info">{{ currentBuildingWorkers }}× speed</span>
               </div>
             </div>
           </template>
           
           <!-- Normálne ovládanie produkcie -->
           <template v-else>
-            <h3 v-if="clickedBuilding.production && clickedBuilding.production.length > 0">⚙️ Ovládanie produkcie</h3>
-            <h3 v-else>⚙️ Ovládanie prevádzky</h3>
+            <h3 v-if="clickedBuilding.production && clickedBuilding.production.length > 0">⚙️ Production Controls</h3>
+            <h3 v-else>⚙️ Operation Controls</h3>
             
             <!-- Tlačidlo na spustenie produkcie -->
             <div class="production-controls">
@@ -2990,8 +3194,8 @@ const handleReorderBuildings = (newOrder) => {
                 :disabled="!canStartProduction() || currentBuildingAutoEnabled"
                 @click="startProduction"
               >
-                <span v-if="canStartProduction()">▶️ Spustiť produkciu</span>
-                <span v-else>⛔ Nedostatok resources</span>
+                <span v-if="canStartProduction()">▶️ Start Production</span>
+                <span v-else>⛔ Insufficient resources</span>
               </button>
               
               <label class="auto-production-toggle" :class="{ 'with-progress': currentBuildingAutoEnabled }">
@@ -3011,7 +3215,7 @@ const handleReorderBuildings = (newOrder) => {
             </div>
             
             <p v-if="!canStartProduction()" class="production-warning">
-              ⚠️ Nemáte dostatok resources na prevádzku!
+              ⚠️ You don't have enough resources for operation!
             </p>
           </template>
         </div>
@@ -3022,7 +3226,7 @@ const handleReorderBuildings = (newOrder) => {
     <!-- Insufficient Resources Modal -->
     <Modal 
       v-if="showInsufficientResourcesModal" 
-      title="⚠️ Nedostatok resources"
+      title="⚠️ Insufficient resources"
       @close="showInsufficientResourcesModal = false"
     >
       <div class="insufficient-resources-content">
@@ -3031,7 +3235,7 @@ const handleReorderBuildings = (newOrder) => {
         <!-- Chýbajúce resources na stavbu -->
         <div v-if="insufficientResourcesData.missingBuildResources.length > 0" class="missing-section">
           <p class="warning-text">
-            🔨 Nemôžete postaviť túto budovu, pretože nemáte dostatok resources potrebných na stavbu:
+            🔨 You cannot build this building because you don't have enough resources required for construction:
           </p>
           <div class="missing-resources-list">
             <div 
@@ -3041,9 +3245,9 @@ const handleReorderBuildings = (newOrder) => {
             >
               <span class="resource-name">📦 {{ resource.name }}</span>
               <span class="resource-amounts">
-                <span class="needed">✏️ Potrebné: {{ resource.needed }}</span>
-                <span class="available">✅ Dostupné: {{ resource.available }}</span>
-                <span class="deficit">❌ Chýba: {{ resource.needed - resource.available }}</span>
+                <span class="needed">✏️ Required: {{ resource.needed }}</span>
+                <span class="available">✅ Available: {{ resource.available }}</span>
+                <span class="deficit">❌ Missing: {{ resource.needed - resource.available }}</span>
               </span>
             </div>
           </div>
@@ -3052,7 +3256,7 @@ const handleReorderBuildings = (newOrder) => {
         <!-- Chýbajúce resources na prevádzku -->
         <div v-if="insufficientResourcesData.missingOperationalResources.length > 0" class="missing-section">
           <p class="warning-text">
-            ⚙️ Nemôžete postaviť túto budovu, pretože nemáte dostatok resources potrebných na prevádzku:
+            ⚙️ You cannot build this building because you don't have enough resources required for operation:
           </p>
           <div class="missing-resources-list">
             <div 
@@ -3062,13 +3266,48 @@ const handleReorderBuildings = (newOrder) => {
             >
               <span class="resource-name">📦 {{ resource.name }}</span>
               <span class="resource-amounts">
-                <span class="needed">✏️ Potrebné: {{ resource.needed }}</span>
-                <span class="available">✅ Dostupné: {{ resource.available }}</span>
-                <span class="deficit">❌ Chýba: {{ resource.needed - resource.available }}</span>
+                <span class="needed">✏️ Required: {{ resource.needed }}</span>
+                <span class="available">✅ Available: {{ resource.available }}</span>
+                <span class="deficit">❌ Missing: {{ resource.needed - resource.available }}</span>
               </span>
             </div>
           </div>
         </div>
+      </div>
+    </Modal>
+
+    <!-- Game Event Modal -->
+    <Modal 
+      v-if="showEventModal && triggeredEvent" 
+      :title="'🎯 ' + triggeredEvent.name"
+      width="500px"
+      @close="closeEventModal"
+    >
+      <div class="event-modal-content">
+        <div v-if="triggeredEvent.image" class="event-modal-image">
+          <img :src="triggeredEvent.image" :alt="triggeredEvent.name" />
+        </div>
+        <div v-if="triggeredEvent.description" class="event-modal-description">
+          {{ triggeredEvent.description }}
+        </div>
+        <div v-if="triggeredEvent.actions && triggeredEvent.actions.length > 0" class="event-modal-actions">
+          <h4>Effects:</h4>
+          <div v-for="(action, idx) in triggeredEvent.actions" :key="idx" class="event-action-item">
+            <template v-if="action.type === 'add_resource'">
+              <span>➕ +{{ action.amount }} {{ action.resourceName || action.resourceId }}</span>
+            </template>
+            <template v-else-if="action.type === 'remove_resource'">
+              <span>➖ -{{ action.amount }} {{ action.resourceName || action.resourceId }}</span>
+            </template>
+            <template v-else-if="action.type === 'show_message'">
+              <span>💬 {{ action.message }}</span>
+            </template>
+            <template v-else-if="action.type === 'unlock_building'">
+              <span>🔓 Building unlocked</span>
+            </template>
+          </div>
+        </div>
+        <button class="event-modal-ok-btn" @click="closeEventModal">OK</button>
       </div>
     </Modal>
   </div>
@@ -4026,5 +4265,78 @@ header {
 .missing-resource-item .deficit {
   color: #ef4444;
   font-weight: 600;
+}
+
+/* Game Event Modal */
+.event-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  text-align: center;
+}
+
+.event-modal-image {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.event-modal-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.event-modal-description {
+  font-size: 1rem;
+  color: #374151;
+  line-height: 1.6;
+  padding: 0.5rem 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.event-modal-actions {
+  width: 100%;
+  text-align: left;
+}
+
+.event-modal-actions h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.event-action-item {
+  padding: 0.4rem 0.75rem;
+  background: #f3f4f6;
+  border-radius: 6px;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.event-modal-ok-btn {
+  padding: 0.6rem 2.5rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  margin-top: 0.5rem;
+}
+
+.event-modal-ok-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 </style>

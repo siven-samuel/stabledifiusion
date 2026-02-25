@@ -75,11 +75,29 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['load-project', 'update:showNumbering', 'update:showGallery', 'update:showGrid', 'update-resources', 'mode-changed', 'update-events'])
+const emit = defineEmits(['load-project', 'update:showNumbering', 'update:showGallery', 'update:showGrid', 'update-resources', 'mode-changed', 'update-events', 'effect-changed'])
 
 const fileInput = ref(null)
 const showResourceModal = ref(false)
 const showEventModal = ref(false)
+
+// Effect preview
+const selectedEffect = ref('none')
+const effectOptions = [
+  { value: 'none', label: '❌ None' },
+  { value: 'night', label: '🌙 Night' },
+  { value: 'shake', label: '🌋 Shake' },
+  { value: 'flash', label: '⚡ Flash' },
+  { value: 'pulse', label: '💫 Pulse' },
+  { value: 'fade', label: '🌫️ Fade' },
+  { value: 'bounce', label: '⬆️ Bounce' },
+  { value: 'fire', label: '🔥 Fire' },
+  { value: 'smoke', label: '💨 Smoke' }
+]
+
+const onEffectChange = () => {
+  emit('effect-changed', selectedEffect.value)
+}
 
 const openResourceManager = () => {
   showResourceModal.value = true
@@ -160,7 +178,7 @@ const resizeImage = async (imageUrl, buildingSize) => {
 // Uloží projekt do JSON súboru
 const saveProject = () => {
   if (props.images.length === 0) {
-    alert('Žiadne obrázky na uloženie!')
+    alert('No images to save!')
     return
   }
 
@@ -337,14 +355,14 @@ const saveProject = () => {
     console.log(`   🛣️ Road tiles: ${roadTileCount} (uložené ako metadata, nie celé obrázky - OPTIMALIZOVANÉ!)`)
   } catch (error) {
     console.error('❌ Chyba pri ukladaní projektu:', error)
-    alert('Chyba pri ukladaní projektu: ' + error.message)
+    alert('Error saving project: ' + error.message)
   }
 }
 
 // Uloží projekt do JSON súboru s optimalizovanými obrázkami pre gameplay
 const saveGameplayProject = async () => {
   if (props.images.length === 0) {
-    alert('Žiadne obrázky na uloženie!')
+    alert('No images to save!')
     return
   }
 
@@ -494,7 +512,7 @@ const saveGameplayProject = async () => {
     console.log('   🎨 Škálované podľa buildingSize')
   } catch (error) {
     console.error('❌ Chyba pri ukladaní gameplay projektu:', error)
-    alert('Chyba pri ukladaní gameplay projektu: ' + error.message)
+    alert('Error saving gameplay project: ' + error.message)
   }
 }
 
@@ -513,7 +531,7 @@ const handleFileUpload = async (event) => {
 
     // Validácia
     if (!projectData.images || !Array.isArray(projectData.images)) {
-      throw new Error('Neplatný formát projektu')
+      throw new Error('Invalid project format')
     }
 
     console.log('📂 Načítavam projekt:', projectData.imageCount, 'obrázkov v galérii')
@@ -609,18 +627,18 @@ const handleFileUpload = async (event) => {
     console.log('✅ Projekt načítaný!')
   } catch (error) {
     console.error('❌ Chyba pri načítavaní projektu:', error)
-    alert('Chyba pri načítavaní projektu: ' + error.message)
+    alert('Error loading project: ' + error.message)
   }
 }
 
 // Vyčisti všetky obrázky
 const clearProject = () => {
   if (props.images.length === 0) {
-    alert('Galéria je už prázdna!')
+    alert('Gallery is already empty!')
     return
   }
 
-  if (confirm(`Naozaj chcete vymazať všetkých ${props.images.length} obrázkov z galérie?`)) {
+  if (confirm(`Are you sure you want to delete all ${props.images.length} images from the gallery?`)) {
     emit('load-project', {
       images: [],
       placedImages: {}
@@ -638,14 +656,14 @@ const clearProject = () => {
         <button 
           @click="router.push('/')" 
           :class="['mode-btn', { active: route.path === '/' }]"
-          title="Editor režim - generovanie a úpravy"
+          title="Editor mode - generate and edit"
         >
           🎨 Editor
         </button>
         <button 
           @click="router.push('/game')" 
           :class="['mode-btn', { active: route.path === '/game' }]"
-          title="Game Play režim - zobrazenie resources"
+          title="Game Play mode - display resources"
         >
           🎮 Game Play
         </button>
@@ -653,59 +671,68 @@ const clearProject = () => {
       
       <div class="separator"></div>
       
-      <button @click="saveProject" class="btn btn-save" title="Uložiť projekt do JSON súboru">
+      <button @click="saveProject" class="btn btn-save" title="Save project to JSON file">
         💾 Save
       </button>
       
-      <button @click="saveGameplayProject" class="btn btn-save-gameplay" title="Uložiť projekt s optimalizovanými obrázkami pre gameplay">
+      <button @click="saveGameplayProject" class="btn btn-save-gameplay" title="Save project with optimized images for gameplay">
         🎮 Save Gameplay
       </button>
       
-      <button @click="loadProject" class="btn btn-load" title="Načítať projekt z JSON súboru">
+      <button @click="loadProject" class="btn btn-load" title="Load project from JSON file">
         📂 Load
       </button>
       
-      <button @click="openResourceManager" class="btn btn-resources" title="Spravovať resources a workforce">
+      <button @click="openResourceManager" class="btn btn-resources" title="Manage resources and workforce">
         📊 Resources
       </button>
       
-      <button @click="openEventEmitter" class="btn btn-events" title="Správa eventov a triggerov">
+      <button @click="openEventEmitter" class="btn btn-events" title="Manage events and triggers">
         ⚡ Events
       </button>
       
-      <button @click="clearProject" class="btn btn-clear" title="Vymazať všetky obrázky">
+      <button @click="clearProject" class="btn btn-clear" title="Delete all images">
         🗑️ Clear
       </button>
     </div>
 
     <!-- Checkboxy pre zobrazenie -->
     <div class="toggle-group">
-      <label class="toggle-label" title="Zobraziť/skryť číslovanie políčok">
+      <label class="toggle-label" title="Show/hide cell numbering">
         <input 
           type="checkbox" 
           :checked="showNumbering"
           @change="$emit('update:showNumbering', $event.target.checked)"
         />
-        <span>🔢 Číslovanie</span>
+        <span>🔢 Numbering</span>
       </label>
       
-      <label class="toggle-label" title="Zobraziť/skryť galériu obrázkov">
+      <label class="toggle-label" title="Show/hide image gallery">
         <input 
           type="checkbox" 
           :checked="showGallery"
           @change="$emit('update:showGallery', $event.target.checked)"
         />
-        <span>🖼️ Galéria</span>
+        <span>🖼️ Gallery</span>
       </label>
       
-      <label class="toggle-label" title="Zobraziť/skryť mriežku šachovnice">
+      <label class="toggle-label" title="Show/hide checkerboard grid">
         <input 
           type="checkbox" 
           :checked="showGrid"
           @change="$emit('update:showGrid', $event.target.checked)"
         />
-        <span>⊞ Mriežka</span>
+        <span>⊞ Grid</span>
       </label>
+
+      <div class="effect-select-wrapper">
+        <span class="effect-icon">✨</span>
+        <select v-model="selectedEffect" @change="onEffectChange" class="effect-select">
+          <option v-for="opt in effectOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <!-- Skrytý file input -->
@@ -829,6 +856,44 @@ const clearProject = () => {
   height: 18px;
   cursor: pointer;
   accent-color: #10b981;
+}
+
+.effect-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+}
+
+.effect-icon {
+  font-size: 1rem;
+}
+
+.effect-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.effect-select:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.effect-select:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+.effect-select option {
+  background: #374151;
+  color: white;
 }
 
 .btn {

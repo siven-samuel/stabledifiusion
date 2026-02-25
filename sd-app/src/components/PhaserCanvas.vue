@@ -170,6 +170,10 @@ class IsoScene extends Phaser.Scene {
     
     // Mapa disabled overlay efektov pre manuálne zastavené budovy
     this.disabledOverlays = {}
+    
+    // Night overlay
+    this.nightOverlay = null
+    this.nightTween = null
   }
 
   preload() {
@@ -238,6 +242,13 @@ class IsoScene extends Phaser.Scene {
       console.log('✅ Person GIF framy načítané, PersonManager pripravený')
     })
     
+    // Night overlay - tmavý obdĺžnik cez celú hraciu plochu
+    this.nightOverlay = this.add.rectangle(0, GRID_SIZE * TILE_HEIGHT / 2, 8000, 8000, 0x050510)
+    this.nightOverlay.setDepth(9999990) // Pod UI ale nad všetkým ostatným
+    this.nightOverlay.setAlpha(0)
+    this.nightOverlay.setScrollFactor(1)
+    this.nightOverlay.setBlendMode(Phaser.BlendModes.MULTIPLY)
+    
     // Inicializujeme PersonManager (sprites sa nastavia po načítaní GIF)
     this.personManager = new PersonManager(this, cellImages, {
       personCount: 200,
@@ -254,6 +265,183 @@ class IsoScene extends Phaser.Scene {
       TILE_HEIGHT,
       moveDuration: 2000, // 2x rýchlejšie (pôvodne 4000)
       initialDelayRange: [0, 4000]
+    })
+  }
+
+  // Zapne/vypne efekt na celú hraciu plochu
+  applyEffect(effectName) {
+    // Najprv vypni všetky efekty
+    this.clearAllEffects()
+    
+    if (effectName === 'none') return
+    
+    switch (effectName) {
+      case 'night':
+        this.applyNightEffect()
+        break
+      case 'shake':
+        this.applyShakeEffect()
+        break
+      case 'flash':
+        this.applyFlashEffect()
+        break
+      case 'pulse':
+        this.applyPulseEffect()
+        break
+      case 'fade':
+        this.applyFadeEffect()
+        break
+      case 'bounce':
+        this.applyBounceEffect()
+        break
+      case 'fire':
+        this.applyFireEffect()
+        break
+      case 'smoke':
+        this.applySmokeEffect()
+        break
+    }
+  }
+  
+  clearAllEffects() {
+    // Stop night
+    if (this.nightTween) { this.nightTween.stop(); this.nightTween = null }
+    if (this.nightOverlay) this.nightOverlay.setAlpha(0)
+    
+    // Restore shadows
+    if (this.shadowTween) { this.shadowTween.stop(); this.shadowTween = null }
+    if (this.shadowRenderTexture) {
+      this.shadowTween = this.tweens.add({
+        targets: this.shadowRenderTexture,
+        alpha: 0.25,
+        duration: 1500,
+        ease: 'Sine.easeInOut'
+      })
+    }
+    
+    // Stop effect overlay
+    if (this.effectTween) { this.effectTween.stop(); this.effectTween = null }
+    if (this.effectOverlay) { this.effectOverlay.destroy(); this.effectOverlay = null }
+    
+    // Stop camera effects
+    this.cameras.main.setAlpha(1)
+    this.cameras.main.resetFX()
+    
+    // Stop shake timer
+    if (this.shakeTimer) { this.shakeTimer.remove(); this.shakeTimer = null }
+    
+    // Stop bounce tween
+    if (this.bounceTween) { this.bounceTween.stop(); this.bounceTween = null }
+    if (this.buildingContainer) this.buildingContainer.setY(0)
+  }
+  
+  applyNightEffect() {
+    if (!this.nightOverlay) return
+    this.nightOverlay.setBlendMode(Phaser.BlendModes.NORMAL)
+    this.nightTween = this.tweens.add({
+      targets: this.nightOverlay,
+      alpha: 0.5,
+      duration: 2000,
+      ease: 'Sine.easeInOut'
+    })
+    
+    // Fade out shadows
+    if (this.shadowTween) { this.shadowTween.stop(); this.shadowTween = null }
+    if (this.shadowRenderTexture) {
+      this.shadowTween = this.tweens.add({
+        targets: this.shadowRenderTexture,
+        alpha: 0,
+        duration: 2000,
+        ease: 'Sine.easeInOut'
+      })
+    }
+  }
+  
+  applyShakeEffect() {
+    this.cameras.main.shake(500, 0.01)
+    this.shakeTimer = this.time.addEvent({
+      delay: 3000,
+      callback: () => { this.cameras.main.shake(500, 0.01) },
+      loop: true
+    })
+  }
+  
+  applyFlashEffect() {
+    this.effectOverlay = this.add.rectangle(0, GRID_SIZE * TILE_HEIGHT / 2, 8000, 8000, 0xffffff)
+    this.effectOverlay.setDepth(9999990)
+    this.effectOverlay.setAlpha(0)
+    this.effectTween = this.tweens.add({
+      targets: this.effectOverlay,
+      alpha: 0.6,
+      duration: 300,
+      yoyo: true,
+      repeat: -1,
+      repeatDelay: 2000,
+      ease: 'Sine.easeInOut'
+    })
+  }
+  
+  applyPulseEffect() {
+    this.effectOverlay = this.add.rectangle(0, GRID_SIZE * TILE_HEIGHT / 2, 8000, 8000, 0x3333aa)
+    this.effectOverlay.setDepth(9999990)
+    this.effectOverlay.setAlpha(0)
+    this.effectTween = this.tweens.add({
+      targets: this.effectOverlay,
+      alpha: 0.35,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
+  }
+  
+  applyFadeEffect() {
+    this.effectOverlay = this.add.rectangle(0, GRID_SIZE * TILE_HEIGHT / 2, 8000, 8000, 0x000000)
+    this.effectOverlay.setDepth(9999990)
+    this.effectOverlay.setAlpha(0)
+    this.effectTween = this.tweens.add({
+      targets: this.effectOverlay,
+      alpha: 0.7,
+      duration: 3000,
+      ease: 'Sine.easeIn'
+    })
+  }
+  
+  applyBounceEffect() {
+    if (!this.buildingContainer) return
+    this.bounceTween = this.tweens.add({
+      targets: this.buildingContainer,
+      y: -8,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
+  }
+  
+  applyFireEffect() {
+    this.effectOverlay = this.add.rectangle(0, GRID_SIZE * TILE_HEIGHT / 2, 8000, 8000, 0xff4400)
+    this.effectOverlay.setDepth(9999990)
+    this.effectOverlay.setAlpha(0)
+    this.effectTween = this.tweens.add({
+      targets: this.effectOverlay,
+      alpha: { from: 0.15, to: 0.4 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    })
+  }
+  
+  applySmokeEffect() {
+    this.effectOverlay = this.add.rectangle(0, GRID_SIZE * TILE_HEIGHT / 2, 8000, 8000, 0x888888)
+    this.effectOverlay.setDepth(9999990)
+    this.effectOverlay.setAlpha(0)
+    this.effectTween = this.tweens.add({
+      targets: this.effectOverlay,
+      alpha: 0.5,
+      duration: 4000,
+      ease: 'Sine.easeIn'
     })
   }
 
@@ -3570,6 +3758,10 @@ defineExpose({
   hideWorkforceAllocations: () => {
     mainScene?.hideWorkforceAllocations()
   },
+  // Aplikuje efekt na hraciu plochu
+  applyEffect: (effectName) => {
+    mainScene?.applyEffect(effectName)
+  },
   // Spawn cars náhodne na road tiles
   spawnCarsOnAllRoads: (totalCount) => {
     if (!mainScene || !mainScene.carManager || totalCount <= 0) return
@@ -4039,7 +4231,7 @@ onUnmounted(() => {
           :checked="props.showNumbering"
           @change="$emit('toggle-numbering', $event.target.checked)"
         />
-        <span>🔢 Číslovanie</span>
+        <span>🔢 Numbering</span>
       </label>
       <label class="checkbox-label">
         <input 
@@ -4047,7 +4239,7 @@ onUnmounted(() => {
           :checked="props.showGallery"
           @change="$emit('toggle-gallery', $event.target.checked)"
         />
-        <span>🖼️ Galéria</span>
+        <span>🖼️ Gallery</span>
       </label>
       <label class="checkbox-label">
         <input 
@@ -4055,14 +4247,14 @@ onUnmounted(() => {
           :checked="props.showGrid"
           @change="$emit('toggle-grid', $event.target.checked)"
         />
-        <span>☰ Mriežka</span>
+        <span>☰ Grid</span>
       </label>
       <label class="checkbox-label">
         <input 
           type="checkbox" 
           v-model="showPerson"
         />
-        <span>🚶 Osoba</span>
+        <span>🚶 Person</span>
       </label>
     </div>
   </div>

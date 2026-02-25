@@ -170,7 +170,7 @@ onUnmounted(() => {
   <div class="resource-display">
     <div class="resource-list">
       <div v-if="resources.length === 0" class="empty-state">
-        <p>Žiadne resources</p>
+        <p>No resources</p>
       </div>
       
       <!-- Work-force resources sekcia -->
@@ -188,7 +188,7 @@ onUnmounted(() => {
                                     (storedResources[resource.id] === 0 && resource.amount > 0)
           }"
         >
-          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Zobraziť budovy pre ' + resource.name">
+          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
             <img 
               v-if="resource.icon" 
               :src="resource.icon" 
@@ -198,7 +198,7 @@ onUnmounted(() => {
             <span v-else class="icon-placeholder">📦</span>
           </div>
           <div class="resource-info">
-            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Zobraziť budovy pre ' + resource.name">{{ resource.name }}</span>
+            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
             <div class="resource-amounts">
               <span class="amount-current">{{ resource.amount }}</span>
               <span
@@ -212,7 +212,7 @@ onUnmounted(() => {
               <span 
                 v-if="resource.workResource && allocatedResources[resource.id]"
                 class="amount-allocated clickable-allocated"
-                :title="`Klikni pre zobrazenie alokácií work force`"
+                :title="`Click to show work force allocations`"
                 @click.stop="emit('show-allocations', resource.id)"
               >({{ allocatedResources[resource.id] }})</span>
               <span 
@@ -248,7 +248,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Non-work-force, non-component resources sekcia -->
+      <!-- Non-work-force, non-component resources section -->
       <div v-if="resources.filter(r => !r.workResource && !r.isComponent).length > 0" class="resource-section">
         <div class="section-header">
           <span class="section-icon">📦</span>
@@ -263,7 +263,7 @@ onUnmounted(() => {
                                     (storedResources[resource.id] === 0 && resource.amount > 0)
           }"
         >
-          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Zobraziť budovy pre ' + resource.name">
+          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
             <img 
               v-if="resource.icon" 
               :src="resource.icon" 
@@ -273,7 +273,7 @@ onUnmounted(() => {
             <span v-else class="icon-placeholder">📦</span>
           </div>
           <div class="resource-info">
-            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Zobraziť budovy pre ' + resource.name">{{ resource.name }}</span>
+            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
             <div class="resource-amounts">
               <span class="amount-current">{{ resource.amount }}</span>
               <span
@@ -331,7 +331,7 @@ onUnmounted(() => {
                                     (storedResources[resource.id] === 0 && resource.amount > 0)
           }"
         >
-          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Zobraziť budovy pre ' + resource.name">
+          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
             <img 
               v-if="resource.icon" 
               :src="resource.icon" 
@@ -341,7 +341,7 @@ onUnmounted(() => {
             <span v-else class="icon-placeholder">⚙️</span>
           </div>
           <div class="resource-info">
-            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Zobraziť budovy pre ' + resource.name">{{ resource.name }}</span>
+            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
             <div class="resource-amounts">
               <span class="amount-current">{{ resource.amount }}</span>
               <span

@@ -2760,7 +2760,7 @@ const handleReorderBuildings = (newOrder) => {
     <AstronautSprite
       ref="astronautRef"
       :active="astronautActive"
-      bubbleText="Hello!"
+      bubbleText="Hello!c sdsdsdsddddddddddddd sdsadsa sadsadsa. asdasdasd dsdsadasd ssdasdasd sdsadasd"
       spriteUrl="/templates/all/advisor3.png"
       :cols="3"
       :rows="2"

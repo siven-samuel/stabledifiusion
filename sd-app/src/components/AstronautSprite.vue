@@ -97,10 +97,20 @@ let queueProcessTimeout = null
 
 const totalFrames = computed(() => props.cols * props.rows)
 
-// Duration to show based on bubble text length: 0.2s per character
+// Reading time: 0.12s per character + 0.2s extra per space + 0.4s per sentence-end (. or !)
+const calcReadingTime = (text) => {
+  const spaces = (text.match(/ /g) || []).length
+  const sentenceEnds = (text.match(/[.!]/g) || []).length
+  return text.length * 120 + spaces * 200 + sentenceEnds * 400
+}
+
+// Duration to show based on bubble text length
 const displayDuration = computed(() => {
-  return currentText.value.length * 200
+  return calcReadingTime(currentText.value)
 })
+
+// Speed multiplier for sprite animation (faster than prop value)
+const animSpeed = computed(() => Math.round(props.frameSpeed * 0.75))
 
 // The visible viewport is smaller than the full frame — we zoom into the center
 const viewportWidth = computed(() => props.frameWidth * (1 - props.cropInset * 2))
@@ -130,10 +140,15 @@ const startAnimation = () => {
   animating.value = true
   currentFrame.value = 0
 
-  // Start sprite frame cycling
+  // Start sprite frame cycling (randomly skip frame 3 sometimes, 50% chance to skip 2 frames)
   animationInterval = setInterval(() => {
-    currentFrame.value = (currentFrame.value + 1) % totalFrames.value
-  }, props.frameSpeed)
+    let next = (currentFrame.value + 1) % totalFrames.value
+    if (next === 2 && Math.random() < 0.75) {
+      next = (next + 1) % totalFrames.value
+      if (Math.random() < 0.5) next = (next + 1) % totalFrames.value
+    }
+    currentFrame.value = next
+  }, animSpeed.value)
 
   // Show bubble after a short delay
   bubbleTimeout = setTimeout(() => {
@@ -244,10 +259,15 @@ const displayMessage = (text, icon, warningType, priority, resourceId) => {
   visible.value = true
   animating.value = true
 
-  // Start sprite frame cycling
+  // Start sprite frame cycling (randomly skip frame 3 sometimes, 50% chance to skip 2 frames)
   animationInterval = setInterval(() => {
-    currentFrame.value = (currentFrame.value + 1) % totalFrames.value
-  }, props.frameSpeed)
+    let next = (currentFrame.value + 1) % totalFrames.value
+    if (next === 3 && Math.random() < 0.75) {
+      next = (next + 1) % totalFrames.value
+      if (Math.random() < 0.5) next = (next + 1) % totalFrames.value
+    }
+    currentFrame.value = next
+  }, animSpeed.value)
 
   // Show bubble after a short delay
   bubbleTimeout = setTimeout(() => {
@@ -255,7 +275,7 @@ const displayMessage = (text, icon, warningType, priority, resourceId) => {
   }, 300)
 
   // Stop looping after reading time, freeze on last frame + idle shake
-  const totalWait = 300 + text.length * 200
+  const totalWait = 300 + calcReadingTime(text)
   stopTimeout = setTimeout(() => {
     if (animationInterval) { clearInterval(animationInterval); animationInterval = null }
     currentFrame.value = totalFrames.value - 1

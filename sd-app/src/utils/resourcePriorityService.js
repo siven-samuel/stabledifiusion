@@ -1,43 +1,43 @@
 /**
- * Resource Priority Service
- * Určuje, ktorým budovám zastaviť/spustiť produkciu podľa spotreby surovín.
- * Pri nedostatku surovín sa zastavujú budovy s NAJVÄČŠOU spotrebou danej suroviny ako prvé.
- * Pri dostatku sa automaticky reštartujú.
+ * Resource Priority Service - SIMPLIFIED
  * 
- * Optimalizované - volá sa len každé 3 sekundy cez setInterval.
- * Zoznam spotreby sa aktualizuje len pri zmene budov (postavenie/recyklácia/vymazanie).
+ * Simple rules:
+ * 1. Build a sorted list of consumers per resource (highest consumption first)
+ * 2. When resource is insufficient, pause the highest consumer first
+ * 3. When resource becomes sufficient, resume paused buildings (lowest consumer first)
+ * 4. Only check free resources for work-force (not allocated)
+ * 5. Manually stopped buildings are never auto-restarted
+ * 6. Check runs every 3 seconds via setInterval in GameView
+ * 
+ * consumptionMap is rebuilt only when buildings change (placed/deleted/recycled).
  */
 
-// Cache pre workResource lookup - prebuduje sa pri buildConsumptionMap
+// Cache pre workResource lookup
 let workResourceIds = new Set()
 
 /**
- * Zostaví mapu spotreby a produkcie surovín pre všetky budovy na canvase.
- * Pre každú surovinu vráti zoznam budov zoradených podľa spotreby (od najväčšej po najmenšiu).
- * Volá sa LEN pri zmene budov na canvase, nie pri zmene resources.
- * @returns {{ consumptionMap: Object, productionMap: Object }}
+ * Build consumption map - sorted list of consumers per resource.
+ * Called ONLY when buildings on canvas change (not on resource changes).
+ * @returns {{ consumptionMap: Object }}
  */
 export function buildConsumptionMap(canvasImagesMap, images, buildingProductionStates = {}, animatingBuildings = null, resources = []) {
-  // Prebuduj workResource cache
   workResourceIds = new Set()
   for (const r of resources) {
     if (r.workResource) workResourceIds.add(r.id)
   }
 
-  // Vytvor image lookup mapu pre rýchly prístup
   const imageMap = new Map()
   for (const img of images) {
     imageMap.set(img.id, img)
   }
 
   const consumptionMap = {}
-  const productionMap = {}
   const entries = Object.entries(canvasImagesMap || {})
 
   for (let i = 0; i < entries.length; i++) {
     const [key, canvasItem] = entries[i]
 
-    // Preskočíme budovy v stavebnej animácii
+    // Skip buildings in construction animation
     if (animatingBuildings && animatingBuildings.has && animatingBuildings.has(key)) continue
 
     const image = imageMap.get(canvasItem.imageId)
@@ -48,152 +48,135 @@ export function buildConsumptionMap(canvasImagesMap, images, buildingProductionS
     const row = parseInt(key.substring(0, dashIdx))
     const col = parseInt(key.substring(dashIdx + 1))
 
-    // Spotreba (operationalCost)
+    // Consumption (operationalCost) - includes work-force
     const operationalCost = bd.operationalCost
     if (operationalCost && operationalCost.length > 0) {
       for (let j = 0; j < operationalCost.length; j++) {
         const cost = operationalCost[j]
-        // Preskočíme work-force
-        if (workResourceIds.has(cost.resourceId)) continue
-
         if (!consumptionMap[cost.resourceId]) {
           consumptionMap[cost.resourceId] = []
         }
         consumptionMap[cost.resourceId].push({
           key, row, col,
           consumption: cost.amount || 0,
-          buildingData: bd
-        })
-      }
-    }
-
-    // Produkcia (production) - pre výpočet čistej spotreby
-    const production = bd.production
-    if (production && production.length > 0) {
-      for (let j = 0; j < production.length; j++) {
-        const prod = production[j]
-        if (workResourceIds.has(prod.resourceId)) continue
-
-        if (!productionMap[prod.resourceId]) {
-          productionMap[prod.resourceId] = []
-        }
-        productionMap[prod.resourceId].push({
-          key, row, col,
-          production: prod.amount || 0,
-          buildingData: bd
+          buildingData: bd,
+          isWorkForce: workResourceIds.has(cost.resourceId)
         })
       }
     }
   }
 
-  // Zoraď od najväčšej spotreby po najmenšiu
+  // Sort by consumption descending (highest first = stopped first)
   const resourceIds = Object.keys(consumptionMap)
   for (let i = 0; i < resourceIds.length; i++) {
     consumptionMap[resourceIds[i]].sort((a, b) => b.consumption - a.consumption)
   }
 
-  return { consumptionMap, productionMap }
+  return { consumptionMap }
 }
 
 /**
- * Hlavná funkcia - vyhodnotí všetky suroviny a vráti zoznamy budov na zastavenie a reštart.
- * Optimalizovaná verzia - iteruje len cez suroviny, ktoré majú spotrebiteľov v consumptionMap.
- * Zohľadňuje produkciu surovín - zastavenie len pri čistom deficite (spotreba > produkcia + zásoby).
+ * Evaluate which buildings to pause/resume.
+ * Simple logic:
+ * - For each resource, if total consumption exceeds available → pause highest consumers until balanced
+ * - For stopped buildings (in stoppedByResources), if available >= their consumption → resume (lowest first)
+ * - Work-force: available = free + already allocated by active buildings (total capacity), since WF is reserved, not consumed
+ * - Materials: available = current stockpile (resource.amount)
+ * - Manually stopped buildings are skipped entirely
+ * 
+ * @param {Array} resources - current resources
+ * @param {Object} consumptionMap - from buildConsumptionMap
+ * @param {Object} buildingProductionStates - { key: { enabled } }
+ * @param {Object} manuallyStoppedBuildings - { key: true }
+ * @param {Object} stoppedByResources - { key: { row, col, buildingData } } - buildings stopped due to resources
+ * @returns {{ toPause: Map<string, Array<{resourceId, resourceName, icon, needed, available}>>, toResume: Set }}
  */
-export function evaluateResourcePriority(resources, consumptionMap, productionMap = {}, buildingProductionStates = {}, stoppedByResources = {}, manuallyStoppedBuildings = {}) {
-  const toStop = new Set()
-  const toRestart = new Set()
-  const stopReasons = {} // { buildingKey: [{ resourceId, resourceName, needed, available }] }
+export function evaluateResourcePriority(resources, consumptionMap, buildingProductionStates = {}, manuallyStoppedBuildings = {}, stoppedByResources = {}) {
+  const toPause = new Map()  // key → [{resourceId, resourceName, icon, needed, available}]
+  const toResume = new Set()
 
-  // Vytvor resource lookup pre rýchly prístup podľa ID
   const resourceMap = new Map()
   for (const r of resources) {
     resourceMap.set(r.id, r)
   }
 
-  // Iteruj len cez suroviny, ktoré majú spotrebiteľov
   const consumedResourceIds = Object.keys(consumptionMap)
 
   for (let i = 0; i < consumedResourceIds.length; i++) {
     const resourceId = consumedResourceIds[i]
     const resource = resourceMap.get(resourceId)
-    if (!resource || resource.workResource) continue
+    if (!resource) continue
 
-    const available = resource.amount
     const consumers = consumptionMap[resourceId]
+    const isWorkForce = workResourceIds.has(resourceId)
 
-    // Spočítaj celkovú produkciu tejto suroviny z aktívnych budov
-    let totalProduced = 0
-    const producers = productionMap[resourceId] || []
-    for (let j = 0; j < producers.length; j++) {
-      const p = producers[j]
-      if (buildingProductionStates[p.key]?.enabled && !manuallyStoppedBuildings[p.key]) {
-        totalProduced += p.production
-      }
-    }
-
-    // --- ZASTAVENIE: Spočítaj aktívnu spotrebu a zastavuj najväčších ---
-    let totalActive = 0
-    let activeCount = 0
-
+    // Calculate total consumption from active buildings
+    let totalActiveConsumption = 0
     for (let j = 0; j < consumers.length; j++) {
       const c = consumers[j]
-      if (buildingProductionStates[c.key]?.enabled && !manuallyStoppedBuildings[c.key]) {
-        totalActive += c.consumption
-        activeCount++
+      if (manuallyStoppedBuildings[c.key]) continue
+      const state = buildingProductionStates[c.key]
+      if (state?.enabled) {
+        totalActiveConsumption += c.consumption
       }
     }
 
-    // Čistá spotreba = spotreba - produkcia
-    // Zastavujeme len ak čistá spotreba presahuje zásoby
-    const netConsumption = totalActive - totalProduced
-    if (netConsumption > available && activeCount > 0) {
-      // Zastavujeme od najväčšej spotreby (consumers sú už zoradené)
-      let remaining = netConsumption
+    // For work-force: resource.amount is FREE (unallocated) amount, but active
+    // buildings already deducted their share via allocation. Add it back to get
+    // total production capacity. For materials: resource.amount is the stockpile.
+    const available = isWorkForce
+      ? resource.amount + totalActiveConsumption
+      : resource.amount
+
+    // --- PAUSE: if not enough resources, pause highest consumers first ---
+    if (totalActiveConsumption > available) {
+      let remaining = totalActiveConsumption
       for (let j = 0; j < consumers.length; j++) {
         if (remaining <= available) break
         const c = consumers[j]
-        if (!buildingProductionStates[c.key]?.enabled || manuallyStoppedBuildings[c.key]) continue
-        toStop.add(c.key)
-        remaining -= c.consumption
-
-        // Zaznač dôvod zastavenia
-        if (!stopReasons[c.key]) stopReasons[c.key] = []
-        stopReasons[c.key].push({
-          resourceId,
-          resourceName: resource.name || 'Unknown',
+        if (manuallyStoppedBuildings[c.key]) continue
+        const state = buildingProductionStates[c.key]
+        if (!state?.enabled) continue
+        // Add deficit info for this building
+        if (!toPause.has(c.key)) toPause.set(c.key, [])
+        toPause.get(c.key).push({
+          id: resourceId,
+          name: resource.name || resourceId,
           icon: resource.icon || '',
           needed: c.consumption,
           available: available
         })
+        remaining -= c.consumption
       }
     }
 
-    // --- REŠTART: Skús reštartovať zastavené budovy (od najmenšej spotreby) ---
-    // Spočítaj spotrebu po zastavení vrátane produkcie
+    // --- RESUME: try to resume stopped buildings (lowest consumption first) ---
+    // Calculate projected consumption after pauses
     let projectedConsumption = 0
     for (let j = 0; j < consumers.length; j++) {
       const c = consumers[j]
-      if (buildingProductionStates[c.key]?.enabled && !toStop.has(c.key)) {
+      if (manuallyStoppedBuildings[c.key]) continue
+      const state = buildingProductionStates[c.key]
+      if (state?.enabled && !toPause.get(c.key)) {
         projectedConsumption += c.consumption
       }
     }
-    let projectedNet = projectedConsumption - totalProduced
 
-    // Iteruj zastavené od najmenšej (koniec poľa = najmenšia spotreba)
+    // Iterate stopped-by-resources buildings from lowest consumption (end of array)
     for (let j = consumers.length - 1; j >= 0; j--) {
       const c = consumers[j]
       if (manuallyStoppedBuildings[c.key]) continue
-      if (buildingProductionStates[c.key]?.enabled) continue
+      // Only resume buildings that are stopped due to resources (not running, not manually stopped)
       if (!stoppedByResources[c.key]) continue
-      if (toStop.has(c.key)) continue
+      if (buildingProductionStates[c.key]?.enabled) continue
+      if (toPause.get(c.key)) continue
 
-      if (projectedNet + c.consumption <= available) {
-        toRestart.add(c.key)
-        projectedNet += c.consumption
+      if (projectedConsumption + c.consumption <= available) {
+        toResume.add(c.key)
+        projectedConsumption += c.consumption
       }
     }
   }
 
-  return { toStop, toRestart, stopReasons }
+  return { toPause, toResume }
 }

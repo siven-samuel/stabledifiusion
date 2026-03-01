@@ -321,14 +321,12 @@ const deallocateWorkforceFor = (row, col, buildingData) => {
   })
 }
 
-// Show resource warning indicator on canvas (only for non-work-force resources)
+// Show resource warning indicator on canvas (includes work-force resources)
 const showResourceWarning = (row, col, buildingData) => {
   const missingResources = []
   if (buildingData?.operationalCost) {
     buildingData.operationalCost.forEach(cost => {
       const resource = resources.value.find(r => r.id === cost.resourceId)
-      // Skip work-force resources — they don't trigger the warning icon
-      if (resource?.workResource) return
       if (!resource || resource.amount < cost.amount) {
         missingResources.push({
           id: cost.resourceId, name: cost.resourceName || resource?.name || 'Unknown',
@@ -357,14 +355,20 @@ const createProductionInterval = (row, col, buildingData) => {
 
     canvasRef.value?.hideWarningIndicator(row, col)
     const storageCheck = canStoreProduction(buildingData, resources.value, storedResources.value)
+    const opCost = buildingData.operationalCost || []
+    const hasAnyOperationalCost = opCost.length > 0
     if (!storageCheck.hasSpace) {
-      canvasRef.value?.showWarningIndicator(row, col, 'storage')
+      // Only show storage warning icon if the building has Operating Cost
+      if (hasAnyOperationalCost) {
+        canvasRef.value?.showWarningIndicator(row, col, 'storage')
+      }
       // Track consecutive overproduction cycles
       if (!overproductionCycles.value[key]) overproductionCycles.value[key] = 0
       if (overproductionCycles.value[key] !== 'shown') overproductionCycles.value[key]++
       // Show astronaut warning only after 3+ consecutive cycles (~15s), then once until resolved
       if (overproductionCycles.value[key] >= 3) {
-        const hasNonWorkCost = buildingData.operationalCost?.some(c => {
+        const opCost = buildingData.operationalCost || []
+        const hasNonWorkCost = opCost.length > 0 && opCost.some(c => {
           const res = resources.value.find(r => r.id === c.resourceId)
           return res && !res.workResource
         })
@@ -455,14 +459,10 @@ const fullStopProduction = (row, col, reason = 'manual', deficitResources = null
     canvasRef.value?.showDisabledOverlay(row, col)
   } else if (reason === 'resources') {
     stoppedByResources.value[key] = { row, col, buildingData: state.buildingData }
-    // Filter out work-force resources — only show warning for material deficits
-    const nonWorkDeficit = deficitResources?.filter(d => {
-      const res = resources.value.find(r => r.id === d.id)
-      return !res?.workResource
-    }) || []
-    if (nonWorkDeficit.length > 0) {
-      canvasRef.value?.showWarningIndicator(row, col, 'resources', nonWorkDeficit)
-    } else if (!deficitResources || deficitResources.length === 0) {
+    // Show warning for all deficit resources (including work-force)
+    if (deficitResources && deficitResources.length > 0) {
+      canvasRef.value?.showWarningIndicator(row, col, 'resources', deficitResources)
+    } else {
       showResourceWarning(row, col, state.buildingData)
     }
     canvasRef.value?.showDisabledOverlay(row, col)
@@ -518,7 +518,11 @@ const resourceCheckInterval = setInterval(() => {
     const data = stoppedByResources.value[key]
     if (!data) continue
     const { row, col, buildingData } = data
-    if (!hasEnoughWorkforceFor(buildingData)) continue
+    if (!hasEnoughWorkforceFor(buildingData)) {
+      // Update warning to show current missing resources (e.g. workforce deficit instead of old material deficit)
+      showResourceWarning(row, col, buildingData)
+      continue
+    }
 
     console.log(`🔄 Priority restart: [${row}, ${col}] - resources available`)
     canvasRef.value?.hideWarningIndicator(row, col)
@@ -1878,16 +1882,25 @@ const toggleAutoProduction = () => {
   }
 }
 
-// Kontrola či je dosť resources na spustenie produkcie - používa resourceCalculator service
+// Kontrola či je dosť resources na spustenie produkcie (vrátane work-force)
 const canStartProduction = () => {
   if (!clickedBuilding.value) return false
-  return checkProductionResources(clickedBuilding.value, resources.value)
+  // Kontrola materiálových resources
+  if (!checkProductionResources(clickedBuilding.value, resources.value)) return false
+  // Kontrola work-force resources (ak budova ešte neprodukuje, WF nie je alokovaná)
+  const key = `${clickedBuilding.value.row}-${clickedBuilding.value.col}`
+  const isProducing = buildingProductionStates.value[key]?.enabled || false
+  if (!isProducing && !hasEnoughWorkforceFor(clickedBuilding.value)) return false
+  return true
 }
 
 // Computed property pre zistenie chýbajúcich operational resources
+// Ak budova NEprodukuje, zahŕňa aj work-force resources (aby boli zvýraznené červenou)
 const missingOperationalResources = computed(() => {
   if (!clickedBuilding.value) return new Set()
-  return getMissingOperationalResources(clickedBuilding.value, resources.value)
+  const key = `${clickedBuilding.value.row}-${clickedBuilding.value.col}`
+  const isProducing = buildingProductionStates.value[key]?.enabled || false
+  return getMissingOperationalResources(clickedBuilding.value, resources.value, !isProducing)
 })
 
 // Spustenie produkcie - používa resourceCalculator service

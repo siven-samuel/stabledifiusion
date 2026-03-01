@@ -266,6 +266,17 @@ class IsoScene extends Phaser.Scene {
       moveDuration: 2000, // 2x rýchlejšie (pôvodne 4000)
       initialDelayRange: [0, 4000]
     })
+
+    // Refresh Graphics objects after tab regains focus (WebGL context restore)
+    this._onVisibilityChange = () => {
+      if (!document.hidden && this.scene.isActive()) {
+        // Small delay to let WebGL context fully restore
+        this.time.delayedCall(300, () => {
+          this.refreshWarningIndicators()
+        })
+      }
+    }
+    document.addEventListener('visibilitychange', this._onVisibilityChange)
   }
 
   // Zapne/vypne efekt na celú hraciu plochu
@@ -824,6 +835,35 @@ class IsoScene extends Phaser.Scene {
       this.warningIndicators[key].exclamation?.destroy()
       delete this.warningIndicators[key]
       console.log(`✅ Warning indikátor skrytý na [${row}, ${col}]`)
+    }
+  }
+
+  // Refresh all warning indicators after WebGL context restore (tab focus regained)
+  refreshWarningIndicators() {
+    const keys = Object.keys(this.warningIndicators)
+    if (keys.length === 0) return
+    console.log(`🔄 Refreshing ${keys.length} warning indicators after visibility change`)
+    
+    // Save current indicator data, destroy old ones, recreate
+    const savedIndicators = []
+    for (const key of keys) {
+      const indicator = this.warningIndicators[key]
+      const [row, col] = key.split('-').map(Number)
+      savedIndicators.push({
+        row, col,
+        type: indicator.type,
+        missingResources: indicator.missingResources || []
+      })
+    }
+    
+    // Destroy all existing indicators
+    for (const { row, col } of savedIndicators) {
+      this.hideWarningIndicator(row, col)
+    }
+    
+    // Recreate them
+    for (const { row, col, type, missingResources } of savedIndicators) {
+      this.showWarningIndicator(row, col, type, missingResources)
     }
   }
 
@@ -4211,6 +4251,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // Remove visibility change listener
+  if (mainScene?._onVisibilityChange) {
+    document.removeEventListener('visibilitychange', mainScene._onVisibilityChange)
+  }
   if (game) {
     game.destroy(true)
     game = null

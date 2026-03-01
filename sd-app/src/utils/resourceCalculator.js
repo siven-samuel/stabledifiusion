@@ -284,7 +284,7 @@ export function canStartProduction(buildingData, resources) {
  * @param {Array} resources - Zoznam dostupných resources
  * @returns {Set} - Set s resourceId ktoré chýbajú
  */
-export function getMissingOperationalResources(buildingData, resources) {
+export function getMissingOperationalResources(buildingData, resources, includeWorkforce = false) {
   const missingResourceIds = new Set()
   
   if (!buildingData || !buildingData.operationalCost) return missingResourceIds
@@ -293,8 +293,8 @@ export function getMissingOperationalResources(buildingData, resources) {
   
   operationalCost.forEach(cost => {
     const resource = resources.find(r => r.id === cost.resourceId)
-    // Work-force sa preskakuje - je alokovaná pri zapnutí produkcie
-    if (resource && resource.workResource) return
+    // Work-force sa preskakuje ak includeWorkforce nie je true (keď budova produkuje, WF je alokovaná)
+    if (resource && resource.workResource && !includeWorkforce) return
     if (!resource || resource.amount < cost.amount) {
       missingResourceIds.add(cost.resourceId)
     }

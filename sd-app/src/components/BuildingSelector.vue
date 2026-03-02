@@ -289,7 +289,7 @@ const totalCount = computed(() => props.buildings.length)
 <style scoped>
 .building-selector {
   background: rgb(0 0 0 / 30%);
-  padding: 1rem;
+  padding: 4rem 1rem 1rem 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 

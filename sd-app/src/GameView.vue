@@ -38,6 +38,7 @@ const canvasRef = ref(null)
 const showNumbering = ref(false)
 const showGallery = ref(true)
 const showGrid = ref(true)
+const showPerson = ref(true)
 const deleteMode = ref(false)
 const environmentColors = ref({ hue: 0, saturation: 100, brightness: 100 })
 const textureSettings = ref({ tilesPerImage: 1, tileResolution: 512, customTexture: null })
@@ -86,6 +87,9 @@ const ignoreResourceCheck = ref(false) // Checkbox pre ignorovanie kontroly reso
 const gameEvents = ref([]) // Zoznam herných eventov
 const manuallyStoppedBuildings = ref({}) // Budovy manuálne zastavené používateľom: { 'row-col': true }
 const consumptionMap = ref({}) // Mapa spotreby surovín pre priority service: { resourceId: [{ key, row, col, consumption, buildingData }] }
+
+// Hamburger menu state
+const hamburgerOpen = ref(false)
 
 // Event trigger system
 const showEventModal = ref(false) // Whether the event modal is shown
@@ -2214,11 +2218,9 @@ const handleReorderBuildings = (newOrder) => {
       :personSpawnCount="personSpawnCount"
       :selectedBuildingDestinationTiles="selectedBuildingDestinationTiles"
       :selectedBuildingCanBuildOnlyInDestination="selectedBuildingCanBuildOnlyInDestination"
+      :showPerson="showPerson"
       @cell-selected="handleCellSelected"
       @image-placed="handleImagePlaced"
-      @toggle-numbering="handleToggleNumbering"
-      @toggle-gallery="handleToggleGallery"
-      @toggle-grid="handleToggleGrid"
       @road-placed="handleRoadPlaced"
       @building-clicked="handleBuildingClicked"
       @building-deleted="handleBuildingDeleted"
@@ -2227,68 +2229,17 @@ const handleReorderBuildings = (newOrder) => {
       @building-recycled="handleBuildingRecycled"
     />
     
-    <!-- Header -->
-    <header>
-      <div class="header-left">
-        <label class="resource-check-toggle">
-          <input type="checkbox" v-model="ignoreResourceCheck" />
-          <span>🚫 Disable resource check</span>
-        </label>
-      </div>
-      
-      <ProjectManager 
-        :images="images"
-        :showNumbering="showNumbering"
-        :showGallery="showGallery"
-        :showGrid="showGrid"
-        :canvasRef="canvasRef"
-        :environmentColors="environmentColors"
-        :textureSettings="textureSettings"
-        :personSpawnSettings="{ enabled: personSpawnEnabled, count: personSpawnCount }"
-        :resources="resources"
-        :workforce="workforce"
-        :roadSpriteUrl="roadSpriteUrl"
-        :roadOpacity="roadOpacity"
-        :buildingProductionStates="buildingProductionStates"
-        :gameTime="gameTime"
-        :events="gameEvents"
-        @load-project="handleLoadProject"
-        @update:showNumbering="showNumbering = $event"
-        @update:showGallery="showGallery = $event"
-        @update:showGrid="showGrid = $event"
-        @update-resources="handleUpdateResources"
-        @update-events="gameEvents = $event"
-        @effect-changed="handleEffectChanged"
-      />
-    </header>
-    
-    <!-- Game Clock - fixná pozícia -->
-    <GameClock 
-      :initialTime="gameTime"
-      @update:gameTime="gameTime = $event"
-    />
+    <!-- Top Resource Bar -->
+    <div class="top-resource-bar">
+      <!-- Hamburger button -->
+      <button class="hamburger-btn" @click="hamburgerOpen = !hamburgerOpen" :class="{ open: hamburgerOpen }">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
 
-    <!-- Pravý sidebar s Resources -->
-    <aside class="sidebar">
-      <!-- Tabs -->
-      <div class="sidebar-tabs">
-        <button 
-          :class="['sidebar-tab', { active: sidebarTab === 'resources' }]" 
-          @click="sidebarTab = 'resources'; filterResourceId = null"
-        >
-          📊 Resources
-        </button>
-        <button 
-          :class="['sidebar-tab', { active: sidebarTab === 'buildings' }]" 
-          @click="sidebarTab = 'buildings'"
-        >
-          🏗️ Buildings
-        </button>
-      </div>
-
-      <!-- Resources tab -->
+      <!-- ResourceDisplay in top bar -->
       <ResourceDisplay 
-        v-show="sidebarTab === 'resources'"
         :resources="resources"
         :storedResources="storedResources"
         :allocatedResources="allocatedResources"
@@ -2296,10 +2247,74 @@ const handleReorderBuildings = (newOrder) => {
         @show-allocations="handleShowAllocations"
         @resource-clicked="handleResourceClicked"
       />
+    </div>
 
-      <!-- Buildings tab -->
+    <!-- Game Clock - fixná pozícia -->
+    <GameClock 
+      :initialTime="gameTime"
+      @update:gameTime="gameTime = $event"
+    />
+
+    <!-- Hamburger dropdown menu -->
+    <div class="hamburger-menu" v-if="hamburgerOpen" @click.self="hamburgerOpen = false">
+      <div class="hamburger-menu-content">
+        <div class="hamburger-menu-header">
+          <span>⚙️ Menu</span>
+          <button class="hamburger-close" @click="hamburgerOpen = false">✕</button>
+        </div>
+        <div class="hamburger-menu-body">
+          <label class="resource-check-toggle">
+            <input type="checkbox" v-model="showNumbering" />
+            <span>🔢 Numbering</span>
+          </label>
+          <label class="resource-check-toggle">
+            <input type="checkbox" v-model="showGallery" />
+            <span>🖼️ Gallery</span>
+          </label>
+          <label class="resource-check-toggle">
+            <input type="checkbox" v-model="showGrid" />
+            <span>☰ Grid</span>
+          </label>
+          <label class="resource-check-toggle">
+            <input type="checkbox" v-model="showPerson" />
+            <span>🚶 Person</span>
+          </label>
+          <label class="resource-check-toggle">
+            <input type="checkbox" v-model="ignoreResourceCheck" />
+            <span>🚫 Disable resource check</span>
+          </label>
+          
+          <ProjectManager 
+            :images="images"
+            :showNumbering="showNumbering"
+            :showGallery="showGallery"
+            :showGrid="showGrid"
+            :canvasRef="canvasRef"
+            :environmentColors="environmentColors"
+            :textureSettings="textureSettings"
+            :personSpawnSettings="{ enabled: personSpawnEnabled, count: personSpawnCount }"
+            :resources="resources"
+            :workforce="workforce"
+            :roadSpriteUrl="roadSpriteUrl"
+            :roadOpacity="roadOpacity"
+            :buildingProductionStates="buildingProductionStates"
+            :gameTime="gameTime"
+            :events="gameEvents"
+            @load-project="handleLoadProject"
+            @update:showNumbering="showNumbering = $event"
+            @update:showGallery="showGallery = $event"
+            @update:showGrid="showGrid = $event"
+            @update-resources="handleUpdateResources"
+            @update-events="gameEvents = $event"
+            @effect-changed="handleEffectChanged"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Pravý sidebar s Buildings -->
+    <aside class="sidebar">
       <BuildingSelector 
-        v-if="sidebarTab === 'buildings'"
         :buildings="buildings"
         :selectedBuildingId="selectedBuildingId"
         :filterResourceId="filterResourceId"
@@ -2309,8 +2324,8 @@ const handleReorderBuildings = (newOrder) => {
         @reorder-buildings="handleReorderBuildings"
       />
 
-      <!-- Road selector - fixed at bottom in buildings tab -->
-      <div v-if="sidebarTab === 'buildings'" class="sidebar-bottom-fixed">
+      <!-- Road selector - fixed at bottom -->
+      <div class="sidebar-bottom-fixed">
         <RoadSelector 
           :roadBuildingMode="roadBuildingMode"
           :roadDeleteMode="roadDeleteMode"
@@ -2840,28 +2855,163 @@ body {
   padding: 0;
 }
 
-header {
+/* Top Resource Bar */
+.top-resource-bar {
   position: absolute;
   top: 0;
   left: 0;
   right: 250px;
-  padding: 0.75rem 2rem;
-  text-align: center;
-  background: rgba(102, 126, 234, 0.95);
-  backdrop-filter: blur(10px);
+  height: auto;
   z-index: 10;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+.top-resource-bar .resource-display {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-resource-bar .resource-display .resource-item {
+  padding: 0.2rem 0.4rem;
+  margin-bottom: 0;
+  border-radius: 4px;
+  min-width: auto;
+  flex-shrink: 0;
+}
+
+.top-resource-bar .game-clock {
+  flex-shrink: 0;
+}
+
+/* Hamburger Button */
+.hamburger-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin: 5px 8px;
+  background: rgba(102, 126, 234, 0.9);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  flex-shrink: 0;
+  transition: all 0.3s;
+  z-index: 15;
+}
+
+.hamburger-btn:hover {
+  background: rgba(102, 126, 234, 1);
+  transform: scale(1.05);
+}
+
+.hamburger-line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: white;
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+.hamburger-btn.open .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger-btn.open .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-btn.open .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(5px, -5px);
+}
+
+/* Hamburger Dropdown Menu */
+.hamburger-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.hamburger-menu-content {
+  position: absolute;
+  top: 55px;
+  left: 8px;
+  background: rgba(102, 126, 234, 0.97);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  min-width: 320px;
+  max-width: 95vw;
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+  animation: hamburger-slide-in 0.2s ease-out;
+}
+
+@keyframes hamburger-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hamburger-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.hamburger-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  transition: background 0.2s;
+}
+
+.hamburger-close:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hamburger-menu-body {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .header-left {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  display: contents;
 }
 
 .resource-check-toggle {
@@ -2898,47 +3048,6 @@ header {
   white-space: nowrap;
 }
 
-.header-controls {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-}
-
-.resource-check-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  color: #667eea;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s;
-  user-select: none;
-}
-
-.resource-check-toggle:hover {
-  background: #f0f0f0;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.resource-check-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #667eea;
-}
-
-.resource-check-toggle span {
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
 .sidebar {
   position: absolute;
   top: 0;
@@ -2949,49 +3058,7 @@ header {
   overflow-y: auto;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
   z-index: 20;
-  padding-top: 55px; /* Priestor pre fixný GameClock */
-}
-
-/* Sidebar Tabs */
-.sidebar-tabs {
-  display: flex;
-  gap: 0;
-  padding: 0.5rem 0.5rem 0;
-  background: white;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-.sidebar-tab {
-  flex: 1;
-  padding: 0.5rem 0.25rem;
-  border: none;
-  background: #f0f0f0;
-  color: #666;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 2px solid transparent;
-}
-
-.sidebar-tab:first-child {
-  border-radius: 8px 0 0 0;
-}
-
-.sidebar-tab:last-child {
-  border-radius: 0 8px 0 0;
-}
-
-.sidebar-tab.active {
-  background: white;
-  color: #333;
-  border-bottom: 2px solid #667eea;
-}
-
-.sidebar-tab:hover:not(.active) {
-  background: #e8e8e8;
+  padding-top: 8px;
 }
 
 /* Road selector fixed at bottom */

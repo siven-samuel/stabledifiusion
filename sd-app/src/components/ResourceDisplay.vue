@@ -168,220 +168,197 @@ onUnmounted(() => {
 
 <template>
   <div class="resource-display">
-    <div class="resource-list">
-      <div v-if="resources.length === 0" class="empty-state">
-        <p>No resources</p>
-      </div>
-      
-      <!-- Work-force resources sekcia -->
-      <div v-if="resources.filter(r => r.workResource).length > 0" class="resource-section">
+    <div v-if="resources.length === 0" class="empty-state">
+      <p>No resources</p>
+    </div>
+
+    <!-- Row 1: Materials -->
+    <div v-if="resources.filter(r => !r.workResource && !r.isComponent).length > 0" class="resource-row">
+      <div class="resource-block">
         <div class="section-header">
-          <span class="section-icon">👷</span>
-          <span class="section-title">Work-force</span>
+          <span class="section-icon">📦</span>
         </div>
-        <div 
-          v-for="resource in resources.filter(r => r.workResource)" 
-          :key="resource.id" 
-          class="resource-item"
-          :class="{ 
-            'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
-                                    (storedResources[resource.id] === 0 && resource.amount > 0)
-          }"
-        >
-          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
-            <img 
-              v-if="resource.icon" 
-              :src="resource.icon" 
-              :alt="resource.name"
-              class="icon-image"
-            />
-            <span v-else class="icon-placeholder">📦</span>
-          </div>
-          <div class="resource-info">
-            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
-            <div class="resource-amounts">
-              <span class="amount-current">{{ resource.amount }}</span>
-              <span
-                class="trend-arrow"
-                :class="{
-                  'trend-up': trends[resource.id] === 'up',
-                  'trend-down': trends[resource.id] === 'down'
-                }"
-                v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
-              >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
-              <span 
-                v-if="resource.workResource && allocatedResources[resource.id]"
-                class="amount-allocated clickable-allocated"
-                :title="`Click to show work force allocations`"
-                @click.stop="emit('show-allocations', resource.id)"
-              >({{ allocatedResources[resource.id] }})</span>
-              <span 
-                v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
-                class="amount-stored"
-                :class="{ 
-                  'storage-full': resource.amount >= (storedResources[resource.id] || 0),
-                  'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
-                }"
-              >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
+        <div class="block-scroll-wrapper">
+        <div class="block-scroll">
+          <div 
+            v-for="resource in resources.filter(r => !r.workResource && !r.isComponent)" 
+            :key="resource.id" 
+            class="resource-item"
+            :class="{ 
+              'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
+                                      (storedResources[resource.id] === 0 && resource.amount > 0)
+            }"
+          >
+            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
+              <img 
+                v-if="resource.icon" 
+                :src="resource.icon" 
+                :alt="resource.name"
+                class="icon-image"
+              />
+              <span v-else class="icon-placeholder">📦</span>
+            </div>
+            <div class="resource-info">
+              <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
+              <div class="resource-amounts">
+                <span class="amount-current">{{ resource.amount }}</span>
+                <span
+                  class="trend-arrow"
+                  :class="{
+                    'trend-up': trends[resource.id] === 'up',
+                    'trend-down': trends[resource.id] === 'down'
+                  }"
+                  v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
+                >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
+                <span 
+                  v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
+                  class="amount-stored"
+                  :class="{ 
+                    'storage-full': resource.amount >= (storedResources[resource.id] || 0),
+                    'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
+                  }"
+                >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
+              </div>
+            </div>
+            <!-- Pie chart odpočítavanie -->
+            <div v-if="countdowns[resource.id]" class="countdown-pie">
+              <svg viewBox="0 0 36 36" class="pie-chart">
+                <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
+                <circle cx="18" cy="18" r="16" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="100" :stroke-dashoffset="100 - countdowns[resource.id].progress" stroke-linecap="round" transform="rotate(-90 18 18)"></circle>
+                <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
+              </svg>
             </div>
           </div>
-          
-          <!-- Pie chart odpočítavanie -->
-          <div v-if="countdowns[resource.id]" class="countdown-pie">
-            <svg viewBox="0 0 36 36" class="pie-chart">
-              <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
-              <circle 
-                cx="18" 
-                cy="18" 
-                r="16" 
-                fill="none" 
-                stroke="#ef4444" 
-                stroke-width="3"
-                stroke-dasharray="100"
-                :stroke-dashoffset="100 - countdowns[resource.id].progress"
-                stroke-linecap="round"
-                transform="rotate(-90 18 18)"
-              ></circle>
-              <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
-            </svg>
+        </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Work-force + Components side by side -->
+    <div class="resource-row resource-row-split">
+      <!-- Work-force block -->
+      <div v-if="resources.filter(r => r.workResource).length > 0" class="resource-block">
+        <div class="section-header">
+          <span class="section-icon">👷</span>
+        </div>
+        <div class="block-scroll-wrapper">
+        <div class="block-scroll">
+          <div 
+            v-for="resource in resources.filter(r => r.workResource)" 
+            :key="resource.id" 
+            class="resource-item"
+            :class="{ 
+              'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
+                                      (storedResources[resource.id] === 0 && resource.amount > 0)
+            }"
+          >
+            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
+              <img 
+                v-if="resource.icon" 
+                :src="resource.icon" 
+                :alt="resource.name"
+                class="icon-image"
+              />
+              <span v-else class="icon-placeholder">📦</span>
+            </div>
+            <div class="resource-info">
+              <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
+              <div class="resource-amounts">
+                <span class="amount-current">{{ resource.amount }}</span>
+                <span
+                  class="trend-arrow"
+                  :class="{
+                    'trend-up': trends[resource.id] === 'up',
+                    'trend-down': trends[resource.id] === 'down'
+                  }"
+                  v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
+                >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
+                <span 
+                  v-if="resource.workResource && allocatedResources[resource.id]"
+                  class="amount-allocated clickable-allocated"
+                  :title="`Click to show work force allocations`"
+                  @click.stop="emit('show-allocations', resource.id)"
+                >({{ allocatedResources[resource.id] }})</span>
+                <span 
+                  v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
+                  class="amount-stored"
+                  :class="{ 
+                    'storage-full': resource.amount >= (storedResources[resource.id] || 0),
+                    'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
+                  }"
+                >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
+              </div>
+            </div>
+            <!-- Pie chart odpočítavanie -->
+            <div v-if="countdowns[resource.id]" class="countdown-pie">
+              <svg viewBox="0 0 36 36" class="pie-chart">
+                <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
+                <circle cx="18" cy="18" r="16" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="100" :stroke-dashoffset="100 - countdowns[resource.id].progress" stroke-linecap="round" transform="rotate(-90 18 18)"></circle>
+                <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
+              </svg>
+            </div>
           </div>
+        </div>
         </div>
       </div>
 
-      <!-- Non-work-force, non-component resources section -->
-      <div v-if="resources.filter(r => !r.workResource && !r.isComponent).length > 0" class="resource-section">
-        <div class="section-header">
-          <span class="section-icon">📦</span>
-          <span class="section-title">Materials</span>
-        </div>
-        <div 
-          v-for="resource in resources.filter(r => !r.workResource && !r.isComponent)" 
-          :key="resource.id" 
-          class="resource-item"
-          :class="{ 
-            'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
-                                    (storedResources[resource.id] === 0 && resource.amount > 0)
-          }"
-        >
-          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
-            <img 
-              v-if="resource.icon" 
-              :src="resource.icon" 
-              :alt="resource.name"
-              class="icon-image"
-            />
-            <span v-else class="icon-placeholder">📦</span>
-          </div>
-          <div class="resource-info">
-            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
-            <div class="resource-amounts">
-              <span class="amount-current">{{ resource.amount }}</span>
-              <span
-                class="trend-arrow"
-                :class="{
-                  'trend-up': trends[resource.id] === 'up',
-                  'trend-down': trends[resource.id] === 'down'
-                }"
-                v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
-              >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
-              <span 
-                v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
-                class="amount-stored"
-                :class="{ 
-                  'storage-full': resource.amount >= (storedResources[resource.id] || 0),
-                  'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
-                }"
-              >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
-            </div>
-          </div>
-          
-          <!-- Pie chart odpočítavanie -->
-          <div v-if="countdowns[resource.id]" class="countdown-pie">
-            <svg viewBox="0 0 36 36" class="pie-chart">
-              <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
-              <circle 
-                cx="18" 
-                cy="18" 
-                r="16" 
-                fill="none" 
-                stroke="#ef4444" 
-                stroke-width="3"
-                stroke-dasharray="100"
-                :stroke-dashoffset="100 - countdowns[resource.id].progress"
-                stroke-linecap="round"
-                transform="rotate(-90 18 18)"
-              ></circle>
-              <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
-            </svg>
-          </div>
-        </div>
-      </div>
-      <!-- Components sekcia -->
-      <div v-if="resources.filter(r => r.isComponent).length > 0" class="resource-section">
+      <!-- Components block -->
+      <div v-if="resources.filter(r => r.isComponent).length > 0" class="resource-block component-block">
         <div class="section-header component-header">
           <span class="section-icon">⚙️</span>
-          <span class="section-title">Components</span>
         </div>
-        <div 
-          v-for="resource in resources.filter(r => r.isComponent)" 
-          :key="resource.id" 
-          class="resource-item component-item"
-          :class="{ 
-            'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
-                                    (storedResources[resource.id] === 0 && resource.amount > 0)
-          }"
-        >
-          <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
-            <img 
-              v-if="resource.icon" 
-              :src="resource.icon" 
-              :alt="resource.name"
-              class="icon-image"
-            />
-            <span v-else class="icon-placeholder">⚙️</span>
-          </div>
-          <div class="resource-info">
-            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
-            <div class="resource-amounts">
-              <span class="amount-current">{{ resource.amount }}</span>
-              <span
-                class="trend-arrow"
-                :class="{
-                  'trend-up': trends[resource.id] === 'up',
-                  'trend-down': trends[resource.id] === 'down'
-                }"
-                v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
-              >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
-              <span 
-                v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
-                class="amount-stored"
-                :class="{ 
-                  'storage-full': resource.amount >= (storedResources[resource.id] || 0),
-                  'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
-                }"
-              >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
+        <div class="block-scroll-wrapper">
+        <div class="block-scroll">
+          <div 
+            v-for="resource in resources.filter(r => r.isComponent)" 
+            :key="resource.id" 
+            class="resource-item component-item"
+            :class="{ 
+              'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
+                                      (storedResources[resource.id] === 0 && resource.amount > 0)
+            }"
+          >
+            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
+              <img 
+                v-if="resource.icon" 
+                :src="resource.icon" 
+                :alt="resource.name"
+                class="icon-image"
+              />
+              <span v-else class="icon-placeholder">⚙️</span>
+            </div>
+            <div class="resource-info">
+              <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
+              <div class="resource-amounts">
+                <span class="amount-current">{{ resource.amount }}</span>
+                <span
+                  class="trend-arrow"
+                  :class="{
+                    'trend-up': trends[resource.id] === 'up',
+                    'trend-down': trends[resource.id] === 'down'
+                  }"
+                  v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
+                >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
+                <span 
+                  v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
+                  class="amount-stored"
+                  :class="{ 
+                    'storage-full': resource.amount >= (storedResources[resource.id] || 0),
+                    'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
+                  }"
+                >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
+              </div>
+            </div>
+            <!-- Pie chart odpočítavanie -->
+            <div v-if="countdowns[resource.id]" class="countdown-pie">
+              <svg viewBox="0 0 36 36" class="pie-chart">
+                <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
+                <circle cx="18" cy="18" r="16" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="100" :stroke-dashoffset="100 - countdowns[resource.id].progress" stroke-linecap="round" transform="rotate(-90 18 18)"></circle>
+                <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
+              </svg>
             </div>
           </div>
-          
-          <!-- Pie chart odpočítavanie -->
-          <div v-if="countdowns[resource.id]" class="countdown-pie">
-            <svg viewBox="0 0 36 36" class="pie-chart">
-              <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
-              <circle 
-                cx="18" 
-                cy="18" 
-                r="16" 
-                fill="none" 
-                stroke="#ef4444" 
-                stroke-width="3"
-                stroke-dasharray="100"
-                :stroke-dashoffset="100 - countdowns[resource.id].progress"
-                stroke-linecap="round"
-                transform="rotate(-90 18 18)"
-              ></circle>
-              <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
-            </svg>
-          </div>
+        </div>
         </div>
       </div>
     </div>
@@ -392,13 +369,71 @@ onUnmounted(() => {
 .resource-display {
   display: flex;
   flex-direction: column;
-  background: rgb(0 0 0 / 26%);
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
 }
 
-.resource-list {
+.resource-row {
+  display: flex;
+  width: 100%;
+}
+
+.resource-row-split {
+  gap: 4px;
+}
+
+.resource-block {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  min-width: 0;
   flex: 1;
-  overflow-y: auto;
-  padding: 0.25rem;
+}
+
+.resource-block .section-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.block-scroll-wrapper {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%);
+}
+
+.block-scroll {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  padding: 0 16px 2px 16px;
+}
+
+/* Thin horizontal scrollbar */
+.block-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.block-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+.block-scroll::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.4);
+  border-radius: 2px;
+}
+
+.block-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.7);
 }
 
 .empty-state {
@@ -412,16 +447,15 @@ onUnmounted(() => {
   font-size: 0.9rem;
 }
 
-
 .section-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.2rem 0.5rem;
   background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
+  border-radius: 4px;
   border: 1px solid #d1d5db;
+  white-space: nowrap;
 }
 
 .section-icon {
@@ -588,25 +622,6 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: bold;
   fill: #ef4444;
-}
-
-/* Scrollbar styling */
-.resource-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.resource-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.resource-list::-webkit-scrollbar-thumb {
-  background: #667eea;
-  border-radius: 4px;
-}
-
-.resource-list::-webkit-scrollbar-thumb:hover {
-  background: #5568d3;
 }
 
 /* Component section */

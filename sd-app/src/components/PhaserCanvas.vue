@@ -89,15 +89,18 @@ const props = defineProps({
   alwaysShowEffects: {
     type: Boolean,
     default: false
+  },
+  showPerson: {
+    type: Boolean,
+    default: true
   }
 })
 
-const emit = defineEmits(['cell-selected', 'image-placed', 'toggle-numbering', 'toggle-gallery', 'toggle-grid', 'road-placed', 'building-clicked', 'destination-tile-clicked', 'building-deleted', 'building-state-changed', 'building-construction-complete', 'building-recycled'])
+const emit = defineEmits(['cell-selected', 'image-placed', 'toggle-numbering', 'toggle-gallery', 'toggle-grid', 'toggle-person', 'road-placed', 'building-clicked', 'destination-tile-clicked', 'building-deleted', 'building-state-changed', 'building-construction-complete', 'building-recycled'])
 
 const gameContainer = ref(null)
 let game = null
 let mainScene = null
-const showPerson = ref(true) // Či zobrazovať pohyblivú osobu
 
 // Computed pre CSS triedu kurzora
 const cursorClass = computed(() => {
@@ -642,6 +645,27 @@ class IsoScene extends Phaser.Scene {
     // Ak máme chýbajúce resources a type je 'resources', zobrazíme ich
     if (type === 'resources' && missingResources && missingResources.length > 0) {
       console.log(`✅ Zobrazujem resource box s ${missingResources.length} položkami`)
+      
+      // Najprv skontroluj či všetky ikony sú načítané - ak nie, načítaj ich a potom znovu zavolaj showWarningIndicator
+      const unloadedIcons = missingResources.filter(r => r.icon && !this.textures.exists(`warning_icon_${r.id}`))
+      if (unloadedIcons.length > 0) {
+        console.log(`📦 Načítavam ${unloadedIcons.length} ikon pre warning indikátor`)
+        unloadedIcons.forEach(r => {
+          this.load.image(`warning_icon_${r.id}`, r.icon)
+        })
+        this.load.once('complete', () => {
+          console.log(`✅ Ikony načítané, rekreujem warning indikátor pre [${row}, ${col}]`)
+          // Ak medzitým nebol indikátor zrušený, znovu vytvor
+          // (hideWarningIndicator mohol byť medzitým volaný)
+          this.hideWarningIndicator(row, col)
+          this.showWarningIndicator(row, col, type, missingResources)
+        })
+        this.load.start()
+        
+        // Zatiaľ zobraz jednoduchý text indikátor (bez ikon)
+        // Toto sa nahradí keď sa ikony načítajú
+      }
+      
       // Vytvoríme semi-transparentný box na pozadí
       const padding = 8
       const itemHeight = 24
@@ -657,89 +681,45 @@ class IsoScene extends Phaser.Scene {
       bg.setDepth(9999999)
       elements.push(bg)
       
-      // Pre každú chýbajúcu surovinu vytvoríme ikonu + text
+      // Pre každú chýbajúcu surovinu vytvoríme ikonu + text (všetko synchronne)
       missingResources.forEach((resource, index) => {
         const yOffset = -boxHeight/2 + padding + index * itemHeight + itemHeight/2
         
-        // Ak má resource ikonu, zobrazíme ju
-        if (resource.icon) {
-          // Vytvor unikátny kľúč pre textúru
-          const iconKey = `missing_icon_${resource.id}_${Date.now()}`
+        // Skús použiť cached ikonu
+        const iconKey = `warning_icon_${resource.id}`
+        if (resource.icon && this.textures.exists(iconKey)) {
+          const iconSprite = this.add.sprite(
+            indicatorX - boxWidth/2 + padding + 10,
+            indicatorY + yOffset,
+            iconKey
+          )
+          iconSprite.setDisplaySize(16, 16)
+          iconSprite.setDepth(9999999)
+          elements.push(iconSprite)
           
-          // Načítaj ikonu (ak už nie je načítaná)
-          if (!this.textures.exists(iconKey)) {
-            this.load.image(iconKey, resource.icon)
-            this.load.once('complete', () => {
-              // Vytvor sprite po načítaní
-              const iconSprite = this.add.sprite(
-                indicatorX - boxWidth/2 + padding + 10,
-                indicatorY + yOffset,
-                iconKey
-              )
-              iconSprite.setDisplaySize(16, 16)
-              iconSprite.setDepth(9999999)
-              elements.push(iconSprite)
-              
-              // Názov suroviny vedľa ikony (skrátený)
-              let displayName = resource.name
-              if (displayName.length > 10) {
-                displayName = displayName.substring(0, 8) + '..'
-              }
-              
-              const text = this.add.text(
-                indicatorX - boxWidth/2 + padding + 26,
-                indicatorY + yOffset,
-                displayName,
-                {
-                  fontSize: '11px',
-                  fontFamily: 'Arial, sans-serif',
-                  color: '#ffcc00',
-                  fontStyle: 'bold',
-                  stroke: '#000000',
-                  strokeThickness: 2
-                }
-              )
-              text.setOrigin(0, 0.5)
-              text.setDepth(9999999)
-              elements.push(text)
-            })
-            this.load.start()
-          } else {
-            // Ak je už načítaná, vytvor sprite priamo
-            const iconSprite = this.add.sprite(
-              indicatorX - boxWidth/2 + padding + 10,
-              indicatorY + yOffset,
-              iconKey
-            )
-            iconSprite.setDisplaySize(16, 16)
-            iconSprite.setDepth(9999999)
-            elements.push(iconSprite)
-            
-            // Názov suroviny vedľa ikony (skrátený)
-            let displayName = resource.name
-            if (displayName.length > 10) {
-              displayName = displayName.substring(0, 8) + '..'
-            }
-            
-            const text = this.add.text(
-              indicatorX - boxWidth/2 + padding + 26,
-              indicatorY + yOffset,
-              displayName,
-              {
-                fontSize: '11px',
-                fontFamily: 'Arial, sans-serif',
-                color: '#ffcc00',
-                fontStyle: 'bold',
-                stroke: '#000000',
-                strokeThickness: 2
-              }
-            )
-            text.setOrigin(0, 0.5)
-            text.setDepth(9999999)
-            elements.push(text)
+          let displayName = resource.name
+          if (displayName.length > 10) {
+            displayName = displayName.substring(0, 8) + '..'
           }
+          
+          const text = this.add.text(
+            indicatorX - boxWidth/2 + padding + 26,
+            indicatorY + yOffset,
+            displayName,
+            {
+              fontSize: '11px',
+              fontFamily: 'Arial, sans-serif',
+              color: '#ffcc00',
+              fontStyle: 'bold',
+              stroke: '#000000',
+              strokeThickness: 2
+            }
+          )
+          text.setOrigin(0, 0.5)
+          text.setDepth(9999999)
+          elements.push(text)
         } else {
-          // Fallback - len text ak nemá ikonu
+          // Fallback - len text ak nemá ikonu alebo ikona ešte nie je načítaná
           let displayName = resource.name
           if (displayName.length > 12) {
             displayName = displayName.substring(0, 10) + '..'
@@ -765,7 +745,7 @@ class IsoScene extends Phaser.Scene {
       })
       
       // Pridáme jemnú pulzujúcu animáciu
-      this.tweens.add({
+      const tween = this.tweens.add({
         targets: elements,
         alpha: { from: 0.8, to: 1 },
         duration: 800,
@@ -773,6 +753,14 @@ class IsoScene extends Phaser.Scene {
         yoyo: true,
         repeat: -1
       })
+      
+      // Uložíme referenciu vrátane tweenu
+      this.warningIndicators[key] = {
+        elements,
+        tween,
+        type,
+        missingResources
+      }
       
     } else {
       // Pôvodný výkričník pre storage alebo keď nemáme info o resources
@@ -800,7 +788,7 @@ class IsoScene extends Phaser.Scene {
       elements.push(exclamation)
       
       // Pridáme pulzujúcu animáciu
-      this.tweens.add({
+      const tween = this.tweens.add({
         targets: elements,
         scaleX: { from: 1, to: 1.2 },
         scaleY: { from: 1, to: 1.2 },
@@ -809,13 +797,14 @@ class IsoScene extends Phaser.Scene {
         yoyo: true,
         repeat: -1
       })
-    }
-    
-    // Uložíme referenciu
-    this.warningIndicators[key] = {
-      elements,
-      type,
-      missingResources
+      
+      // Uložíme referenciu vrátane tweenu
+      this.warningIndicators[key] = {
+        elements,
+        tween,
+        type,
+        missingResources
+      }
     }
     
     console.log(`✅ Warning indikátor vytvorený a zobrazený na [${row}, ${col}], typ: ${type}`)
@@ -826,13 +815,16 @@ class IsoScene extends Phaser.Scene {
     const key = `${row}-${col}`
     
     if (this.warningIndicators[key]) {
-      // Destroy všetky elementy (môže to byť array alebo jednotlivé objekty)
-      if (this.warningIndicators[key].elements) {
-        this.warningIndicators[key].elements.forEach(el => el?.destroy())
+      // Zastav tween ak existuje
+      if (this.warningIndicators[key].tween) {
+        this.warningIndicators[key].tween.stop()
       }
-      // Backward compatibility pre staré referencie
-      this.warningIndicators[key].bg?.destroy()
-      this.warningIndicators[key].exclamation?.destroy()
+      // Destroy všetky elementy
+      if (this.warningIndicators[key].elements) {
+        this.warningIndicators[key].elements.forEach(el => {
+          if (el && !el.destroyed) el.destroy()
+        })
+      }
       delete this.warningIndicators[key]
       console.log(`✅ Warning indikátor skrytý na [${row}, ${col}]`)
     }
@@ -4186,7 +4178,7 @@ watch(() => props.showNumbering, () => {
 })
 
 // Watch pre zobrazenie osoby
-watch(showPerson, (newVal) => {
+watch(() => props.showPerson, (newVal) => {
   mainScene?.togglePerson(newVal)
 })
 
@@ -4266,41 +4258,6 @@ onUnmounted(() => {
 <template>
   <div class="phaser-container">
     <div ref="gameContainer" class="game-container" :class="cursorClass"></div>
-    
-    <!-- Ovládacie prvky -->
-    <div class="controls-toggle">
-      <label class="checkbox-label">
-        <input 
-          type="checkbox" 
-          :checked="props.showNumbering"
-          @change="$emit('toggle-numbering', $event.target.checked)"
-        />
-        <span>🔢 Numbering</span>
-      </label>
-      <label class="checkbox-label">
-        <input 
-          type="checkbox" 
-          :checked="props.showGallery"
-          @change="$emit('toggle-gallery', $event.target.checked)"
-        />
-        <span>🖼️ Gallery</span>
-      </label>
-      <label class="checkbox-label">
-        <input 
-          type="checkbox" 
-          :checked="props.showGrid"
-          @change="$emit('toggle-grid', $event.target.checked)"
-        />
-        <span>☰ Grid</span>
-      </label>
-      <label class="checkbox-label">
-        <input 
-          type="checkbox" 
-          v-model="showPerson"
-        />
-        <span>🚶 Person</span>
-      </label>
-    </div>
   </div>
 </template>
 
@@ -4345,41 +4302,5 @@ onUnmounted(() => {
   display: block;
 }
 
-/* Overlay checkboxy pre ovládanie */
-.controls-toggle {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 10;
-  backdrop-filter: blur(10px);
-  display: flex;
-  gap: 1.5rem;
-}
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-weight: 600;
-  color: #333;
-  user-select: none;
-  margin: 0;
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #667eea;
-}
-
-.checkbox-label span {
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
 </style>

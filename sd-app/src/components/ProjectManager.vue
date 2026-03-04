@@ -61,6 +61,10 @@ const props = defineProps({
     type: Number,
     default: 100
   },
+  allocatedResources: {
+    type: Object,
+    default: () => ({})
+  },
   buildingProductionStates: {
     type: Object,
     default: () => ({})
@@ -299,7 +303,11 @@ const saveProject = () => {
         tileResolution: props.textureSettings?.tileResolution || 512,
         customTexture: props.textureSettings?.customTexture || null
       },
-      resources: props.resources || [],
+      // Pre work-force resources pripočítaj alokované množstvo, aby sa uložil celkový počet
+      resources: (props.resources || []).map(r => {
+        const allocated = (r.workResource && props.allocatedResources[r.id]) ? props.allocatedResources[r.id] : 0
+        return allocated > 0 ? { ...r, amount: r.amount + allocated } : r
+      }),
       workforce: props.workforce || [],
       events: props.events || [],
       gameTime: props.gameTime || 0,
@@ -469,7 +477,11 @@ const saveGameplayProject = async () => {
         tileResolution: props.textureSettings?.tileResolution || 512,
         customTexture: props.textureSettings?.customTexture || null
       },
-      resources: props.resources || [],
+      // Pre work-force resources pripočítaj alokované množstvo, aby sa uložil celkový počet
+      resources: (props.resources || []).map(r => {
+        const allocated = (r.workResource && props.allocatedResources[r.id]) ? props.allocatedResources[r.id] : 0
+        return allocated > 0 ? { ...r, amount: r.amount + allocated } : r
+      }),
       workforce: props.workforce || [],
       events: props.events || [],
       gameTime: props.gameTime || 0,

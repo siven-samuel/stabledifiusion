@@ -18,6 +18,8 @@ const props = defineProps({
 
 const emit = defineEmits(['reduce-to-capacity', 'show-allocations', 'resource-clicked'])
 
+const showComponentsModal = ref(false)
+
 const handleResourceClick = (resource) => {
   emit('resource-clicked', resource.id)
 }
@@ -187,9 +189,9 @@ onUnmounted(() => {
             :class="{ 
               'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
                                       (storedResources[resource.id] === 0 && resource.amount > 0)
-            }"
+            },{'stored-resource': resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined),}"
           >
-            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
+            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="resource.name">
               <img 
                 v-if="resource.icon" 
                 :src="resource.icon" 
@@ -198,27 +200,25 @@ onUnmounted(() => {
               />
               <span v-else class="icon-placeholder">📦</span>
             </div>
-            <div class="resource-info">
-              <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
-              <div class="resource-amounts">
-                <span class="amount-current">{{ resource.amount }}</span>
-                <span
-                  class="trend-arrow"
-                  :class="{
-                    'trend-up': trends[resource.id] === 'up',
-                    'trend-down': trends[resource.id] === 'down'
-                  }"
-                  v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
-                >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
-                <span 
-                  v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
-                  class="amount-stored"
-                  :class="{ 
-                    'storage-full': resource.amount >= (storedResources[resource.id] || 0),
-                    'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
-                  }"
-                >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
-              </div>
+            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="resource.name">{{ resource.name }}</span>
+            <div class="resource-amounts">
+              <span class="amount-current">{{ resource.amount }}</span>
+              <span
+                class="trend-arrow"
+                :class="{
+                  'trend-up': trends[resource.id] === 'up',
+                  'trend-down': trends[resource.id] === 'down'
+                }"
+                v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
+              >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
+              <span 
+                v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
+                class="amount-stored"
+                :class="{ 
+                  'storage-full': resource.amount >= (storedResources[resource.id] || 0),
+                  'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
+                }"
+              >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
             </div>
             <!-- Pie chart odpočítavanie -->
             <div v-if="countdowns[resource.id]" class="countdown-pie">
@@ -250,9 +250,9 @@ onUnmounted(() => {
             :class="{ 
               'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
                                       (storedResources[resource.id] === 0 && resource.amount > 0)
-            }"
+            },{'stored-resource-work': resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined),}"
           >
-            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
+            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="resource.name">
               <img 
                 v-if="resource.icon" 
                 :src="resource.icon" 
@@ -261,33 +261,31 @@ onUnmounted(() => {
               />
               <span v-else class="icon-placeholder">📦</span>
             </div>
-            <div class="resource-info">
-              <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
-              <div class="resource-amounts">
-                <span class="amount-current">{{ resource.amount }}</span>
-                <span
-                  class="trend-arrow"
-                  :class="{
-                    'trend-up': trends[resource.id] === 'up',
-                    'trend-down': trends[resource.id] === 'down'
-                  }"
-                  v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
-                >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
-                <span 
-                  v-if="resource.workResource && allocatedResources[resource.id]"
-                  class="amount-allocated clickable-allocated"
-                  :title="`Click to show work force allocations`"
-                  @click.stop="emit('show-allocations', resource.id)"
-                >({{ allocatedResources[resource.id] }})</span>
-                <span 
-                  v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
-                  class="amount-stored"
-                  :class="{ 
-                    'storage-full': resource.amount >= (storedResources[resource.id] || 0),
-                    'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
-                  }"
-                >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
-              </div>
+            <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="resource.name">{{ resource.name }}</span>
+            <div class="resource-amounts">
+              <span class="amount-current">{{ resource.amount }}</span>
+              <span
+                class="trend-arrow"
+                :class="{
+                  'trend-up': trends[resource.id] === 'up',
+                  'trend-down': trends[resource.id] === 'down'
+                }"
+                v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
+              >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
+              <span 
+                v-if="resource.workResource && allocatedResources[resource.id]"
+                class="amount-allocated clickable-allocated"
+                :title="`Click to show work force allocations`"
+                @click.stop="emit('show-allocations', resource.id)"
+              >({{ allocatedResources[resource.id] }})</span>
+              <span 
+                v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
+                class="amount-stored"
+                :class="{ 
+                  'storage-full': resource.amount >= (storedResources[resource.id] || 0),
+                  'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
+                }"
+              >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
             </div>
             <!-- Pie chart odpočítavanie -->
             <div v-if="countdowns[resource.id]" class="countdown-pie">
@@ -302,73 +300,58 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Components block -->
-      <div v-if="resources.filter(r => r.isComponent).length > 0" class="resource-block component-block">
-        <div class="section-header component-header">
-          <span class="section-icon">⚙️</span>
-        </div>
-        <div class="block-scroll-wrapper">
-        <div class="block-scroll">
-          <div 
-            v-for="resource in resources.filter(r => r.isComponent)" 
-            :key="resource.id" 
-            class="resource-item component-item"
-            :class="{ 
-              'over-capacity-blink': (storedResources[resource.id] !== undefined && resource.amount > storedResources[resource.id]) || 
-                                      (storedResources[resource.id] === 0 && resource.amount > 0)
-            }"
-          >
-            <div class="resource-icon clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">
-              <img 
-                v-if="resource.icon" 
-                :src="resource.icon" 
-                :alt="resource.name"
-                class="icon-image"
-              />
-              <span v-else class="icon-placeholder">⚙️</span>
+      <!-- Components button -->
+      <button
+        v-if="resources.filter(r => r.isComponent).length > 0"
+        class="components-btn"
+        @click="showComponentsModal = true"
+        title="Show all components"
+      >
+        <span class="components-btn-icon">⚙️</span>
+        <span class="components-btn-label">Components</span>
+      </button>
+    </div>
+
+    <!-- Components Modal -->
+    <Teleport to="body">
+      <div v-if="showComponentsModal" class="comp-modal-overlay" @click.self="showComponentsModal = false">
+        <div class="comp-modal">
+          <div class="comp-modal-header">
+            <span>⚙️ Components</span>
+            <button class="comp-modal-close" @click="showComponentsModal = false">✕</button>
+          </div>
+          <div class="comp-modal-body">
+            <div v-if="resources.filter(r => r.isComponent).length === 0" class="comp-modal-empty">
+              No components available.
             </div>
-            <div class="resource-info">
-              <span class="resource-name clickable-resource" @click="handleResourceClick(resource)" :title="'Show buildings for ' + resource.name">{{ resource.name }}</span>
-              <div class="resource-amounts">
-                <span class="amount-current">{{ resource.amount }}</span>
-                <span
-                  class="trend-arrow"
-                  :class="{
-                    'trend-up': trends[resource.id] === 'up',
-                    'trend-down': trends[resource.id] === 'down'
-                  }"
-                  v-if="trends[resource.id] && trends[resource.id] !== 'flat'"
-                >{{ trends[resource.id] === 'up' ? '▲' : '▼' }}</span>
-                <span 
-                  v-if="resource.mustBeStored || (storedResources && storedResources[resource.id] !== undefined)" 
-                  class="amount-stored"
-                  :class="{ 
-                    'storage-full': resource.amount >= (storedResources[resource.id] || 0),
-                    'no-storage': resource.mustBeStored && (storedResources[resource.id] === 0 || storedResources[resource.id] === undefined)
-                  }"
-                >/{{ storedResources[resource.id] !== undefined ? storedResources[resource.id] : 0 }}</span>
+            <div
+              v-for="resource in resources.filter(r => r.isComponent)"
+              :key="resource.id"
+              class="comp-modal-item"
+              @click="handleResourceClick(resource); showComponentsModal = false"
+            >
+              <div class="comp-modal-icon">
+                <img v-if="resource.icon" :src="resource.icon" :alt="resource.name" />
+                <span v-else>⚙️</span>
               </div>
-            </div>
-            <!-- Pie chart odpočítavanie -->
-            <div v-if="countdowns[resource.id]" class="countdown-pie">
-              <svg viewBox="0 0 36 36" class="pie-chart">
-                <circle cx="18" cy="18" r="16" fill="none" stroke="#fee" stroke-width="3"></circle>
-                <circle cx="18" cy="18" r="16" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="100" :stroke-dashoffset="100 - countdowns[resource.id].progress" stroke-linecap="round" transform="rotate(-90 18 18)"></circle>
-                <text x="18" y="21" text-anchor="middle" class="pie-text">{{ countdowns[resource.id].timeLeft }}</text>
-              </svg>
+              <div class="comp-modal-info">
+                <span class="comp-modal-name">{{ resource.name }}</span>
+                <span class="comp-modal-amount">
+                  {{ resource.amount }}
+                  <span v-if="storedResources[resource.id] !== undefined" class="comp-modal-stored">/{{ storedResources[resource.id] }}</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
-        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .resource-display {
   display: flex;
-  flex-direction: column;
   gap: 2px;
   flex: 1;
   min-width: 0;
@@ -409,12 +392,12 @@ onUnmounted(() => {
 
 .block-scroll {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.15rem;
   overflow-x: auto;
   overflow-y: hidden;
   min-width: 0;
-  padding: 0 16px 2px 16px;
+  padding: 0 16px 2px 5px;
 }
 
 /* Thin horizontal scrollbar */
@@ -474,13 +457,18 @@ onUnmounted(() => {
 .resource-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   padding: 0.4rem 0.5rem;
   margin-bottom: 0.25rem;
   background: linear-gradient(135deg, #f8fafb1f 0%, #f0f2f5 100%);
   border-radius: 6px;
   border: 1px solid #9effea;
   transition: all 0.2s;
+  flex-direction: column;
+  width: 5rem;
+}
+
+.resource-item.stored-resource {
+    width: 6.5rem !important;
 }
 
 .resource-item:hover {
@@ -521,23 +509,18 @@ onUnmounted(() => {
   font-size: 1rem;
 }
 
-.resource-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
 .resource-name {
   font-weight: 600;
   color: #000;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 8ch;
+  min-width: 0;
+  flex-shrink: 1;
   margin: 0;
+  text-align: center;
 }
 
 .resource-amounts {
@@ -563,13 +546,13 @@ onUnmounted(() => {
 
 .amount-current {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #518a85;
 }
 
 .amount-stored {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #000; /* čierna farba pre stored hodnotu */
   transition: color 0.3s ease;
 }
@@ -622,6 +605,173 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: bold;
   fill: #ef4444;
+}
+
+/* Components button */
+.components-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0.3rem 0.6rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  height: 80px;
+  align-self: center;
+  transition: all 0.2s;
+  min-width: 4.5rem;
+  background: linear-gradient(135deg, #f8fafb1f 0%, #f0f2f5 100%);
+}
+
+.components-btn:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+  transform: translateY(-1px);
+}
+
+.components-btn-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.components-btn-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #000000;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Components Modal */
+.comp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.comp-modal {
+  background: #1a1a2e;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  width: 420px;
+  max-width: 95vw;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+.comp-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  font-weight: 700;
+  font-size: 1rem;
+  color: #92400e;
+  border-bottom: 1px solid #f59e0b;
+}
+
+.comp-modal-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #92400e;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.comp-modal-close:hover {
+  background: rgba(0,0,0,0.1);
+}
+
+.comp-modal-body {
+  overflow-y: auto;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.comp-modal-empty {
+  text-align: center;
+  color: #aaa;
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+.comp-modal-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.7rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.comp-modal-item:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.comp-modal-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  font-size: 1.2rem;
+}
+
+.comp-modal-icon img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.comp-modal-info {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.comp-modal-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+}
+
+.comp-modal-amount {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #34d399;
+}
+
+.comp-modal-stored {
+  color: #f59e0b;
+  font-size: 0.85rem;
 }
 
 /* Component section */

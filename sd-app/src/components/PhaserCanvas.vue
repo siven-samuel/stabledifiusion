@@ -459,6 +459,170 @@ class IsoScene extends Phaser.Scene {
     })
   }
 
+  // Zobrazí plávajúci efekt mínus resources pri postavení budovy
+  // resources: [{ id, name, icon, amount }]
+  showFloatingResourceCost(row, col, resources) {
+    if (!resources || resources.length === 0) return
+
+    // Nájdi origin bunku ak je sekundárna
+    let key = `${row}-${col}`
+    const originCellData = cellImages[key]
+    if (originCellData?.isSecondary) {
+      row = originCellData.originRow
+      col = originCellData.originCol
+      key = `${row}-${col}`
+    }
+
+    const buildingSprite = this.buildingSprites[key]
+    const { x, y } = this.gridToIso(row, col)
+
+    // Offset pre multi-cell budovy
+    const cellData = cellImages[key]
+    const cellsX = cellData?.cellsX || 1
+    const cellsY = cellData?.cellsY || 1
+    let offsetX = 0
+    let offsetY = 0
+    if (cellsX === 1 && cellsY === 2) {
+      offsetX = -TILE_WIDTH / 4
+      offsetY = TILE_HEIGHT / 2
+    } else if (cellsX === 2 && cellsY === 2) {
+      offsetY = TILE_HEIGHT
+    } else if (cellsX >= 3) {
+      offsetY = TILE_HEIGHT * (cellsX - 1)
+    }
+
+    // Štartovacia pozícia - nad budovou
+    const startX = x + offsetX
+    let startY = y + TILE_HEIGHT + offsetY
+    if (buildingSprite) {
+      startY -= buildingSprite.height * buildingSprite.scaleY + 10
+    } else {
+      startY -= 60
+    }
+
+    // Najprv načítaj ikony ktoré ešte nie sú v cache
+    const unloadedIcons = resources.filter(r => r.icon && !this.textures.exists(`float_icon_${r.id}`))
+    if (unloadedIcons.length > 0) {
+      unloadedIcons.forEach(r => {
+        this.load.image(`float_icon_${r.id}`, r.icon)
+      })
+      this.load.once('complete', () => {
+        this._createFloatingItems(startX, startY, resources)
+      })
+      this.load.start()
+    } else {
+      this._createFloatingItems(startX, startY, resources)
+    }
+  }
+
+  // Interná metóda - vytvorí jednotlivé plávajúce položky
+  _createFloatingItems(startX, startY, resources) {
+    const itemSpacing = 28
+    const totalHeight = resources.length * itemSpacing
+    const baseY = startY - totalHeight / 2
+
+    resources.forEach((resource, index) => {
+      const itemY = baseY + index * itemSpacing
+      const delay = index * 150 // Postupné objavovanie
+
+      this.time.delayedCall(delay, () => {
+        const elements = []
+        const gap = 4 // Medzera medzi prvkami
+
+        // 1) Číslo (červený text) — naľavo
+        const amountText = this.add.text(0, itemY, `-${resource.amount}`, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '14px',
+          fontStyle: 'bold',
+          color: '#ff4444',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        amountText.setOrigin(0, 0.5)
+        amountText.setDepth(9999998)
+        amountText.setAlpha(0)
+        elements.push(amountText)
+
+        // 2) Ikona resource — v strede
+        const iconKey = `float_icon_${resource.id}`
+        let iconSprite = null
+        let iconWidth = 0
+        if (resource.icon && this.textures.exists(iconKey)) {
+          iconSprite = this.add.sprite(0, itemY, iconKey)
+          iconSprite.setDisplaySize(18, 18)
+          iconSprite.setOrigin(0, 0.5)
+          iconSprite.setDepth(9999998)
+          iconSprite.setAlpha(0)
+          elements.push(iconSprite)
+          iconWidth = 20
+        }
+
+        // 3) Názov resource (biely text) — napravo
+        const nameText = this.add.text(0, itemY, resource.name, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '13px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        nameText.setOrigin(0, 0.5)
+        nameText.setDepth(9999998)
+        nameText.setAlpha(0)
+        elements.push(nameText)
+
+        // Centrovanie skupiny okolo startX
+        const totalW = amountText.width + gap + iconWidth + (iconWidth > 0 ? gap : 0) + nameText.width
+        let curX = startX - totalW / 2
+
+        amountText.setX(curX)
+        curX += amountText.width + gap
+
+        if (iconSprite) {
+          iconSprite.setX(curX + iconWidth / 2)
+          iconSprite.setOrigin(0.5, 0.5)
+          curX += iconWidth + gap
+        }
+
+        nameText.setX(curX)
+
+        // Animácia: pomalšia – fade in, plávanie hore, fade out
+        const floatDistance = 80 + resources.length * 10
+        const duration = 3500
+
+        elements.forEach(el => {
+          // Fade in
+          this.tweens.add({
+            targets: el,
+            alpha: 1,
+            duration: 300,
+            ease: 'Power2'
+          })
+
+          // Pohyb hore
+          this.tweens.add({
+            targets: el,
+            y: el.y - floatDistance,
+            duration: duration,
+            ease: 'Sine.easeOut'
+          })
+
+          // Fade out — začne po 50% animácie
+          this.tweens.add({
+            targets: el,
+            alpha: 0,
+            delay: duration * 0.5,
+            duration: duration * 0.5,
+            ease: 'Power2',
+            onComplete: () => {
+              el.destroy()
+            }
+          })
+        })
+      })
+    })
+  }
+
   createPerson() {
     if (this.personManager) {
       this.personManager.createPersons()
@@ -3793,6 +3957,10 @@ defineExpose({
   // Aplikuje efekt na hraciu plochu
   applyEffect: (effectName) => {
     mainScene?.applyEffect(effectName)
+  },
+  // Zobrazí plávajúci efekt mínus resources pri stavbe budovy
+  showFloatingResourceCost: (row, col, resources) => {
+    mainScene?.showFloatingResourceCost(row, col, resources)
   },
   // Spawn cars náhodne na road tiles
   spawnCarsOnAllRoads: (totalCount) => {

@@ -832,6 +832,24 @@ const handleCellSelected = ({ row, col }) => {
         const col = canvasRef.value ? selectedCell.value.col : 0
         const allocatedWorkItems = deductBuildCost(selectedImage.buildingData, row, col)
         
+        // Zobraz plávajúci efekt mínus resources na canvase
+        const buildCostItems = selectedImage.buildingData.buildCost || []
+        if (buildCostItems.length > 0 && canvasRef.value) {
+          const floatingResources = buildCostItems.map(cost => {
+            const resource = resources.value.find(r => r.id === cost.resourceId)
+            return {
+              id: cost.resourceId,
+              name: cost.resourceName || resource?.name || 'Unknown',
+              icon: resource?.icon || '',
+              amount: cost.amount
+            }
+          })
+          // Odložíme zobrazenie o 300ms aby sa budova stihla umiestniť na canvas
+          setTimeout(() => {
+            canvasRef.value?.showFloatingResourceCost(row, col, floatingResources)
+          }, 300)
+        }
+        
         // === Alokácia vehicleAnimation resource (car) pre stavbu ===
         if (availableVehicle) {
           availableVehicle.amount -= 1
@@ -2295,6 +2313,7 @@ const handleReorderBuildings = (newOrder) => {
             :personSpawnSettings="{ enabled: personSpawnEnabled, count: personSpawnCount }"
             :resources="resources"
             :workforce="workforce"
+            :allocatedResources="allocatedResources"
             :roadSpriteUrl="roadSpriteUrl"
             :roadOpacity="roadOpacity"
             :buildingProductionStates="buildingProductionStates"

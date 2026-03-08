@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import roadTileManager from '../utils/roadTileManager.js'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const props = defineProps({
   images: Array,
@@ -32,7 +33,7 @@ const props = defineProps({
   },
   roadSpriteUrl: {
     type: String,
-    default: '/templates/roads/sprites/pastroad.png'
+    default: assetUrl('/templates/roads/sprites/pastroad.png')
   }
 })
 

@@ -3,10 +3,12 @@
  * Samostatný manager pre road tiles - načítava a spravuje road tiles bez závislosti na UI komponentoch
  */
 
+import { assetUrl } from './assetUrl.js'
+
 class RoadTileManager {
   constructor() {
     this.tiles = []
-    this.spriteUrl = '/templates/roads/sprites/pastroad.png'
+    this.spriteUrl = assetUrl('/templates/roads/sprites/pastroad.png')
     this.opacity = 100
     this.isLoading = false
   }

@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const emit = defineEmits(['apply-texture', 'color-change', 'tiles-change', 'resolution-change', 'perspective-change'])
 
 const props = defineProps({
   texturePath: {
     type: String,
-    default: '/enviroment/grass.jpg'
+    default: assetUrl('/enviroment/grass.jpg')
   },
   disabled: {
     type: Boolean,

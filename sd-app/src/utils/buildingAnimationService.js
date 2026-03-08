@@ -3,6 +3,8 @@
  * Obsahuje celú logiku animácie vrátane construct sprite-ov, 0.png tempSprite a masiek
  */
 
+import { assetUrl } from './assetUrl.js'
+
 const DEFAULT_BUILDING_ANIMATION_DURATION = 10000 // ms - použije sa ak nie je buildCost
 const MIN_ANIMATION_DURATION = 3000 // ms - minimálna doba animácie
 const TILE_WIDTH = 64
@@ -217,7 +219,7 @@ export function startRecycleAnimation(scene, params) {
   let tempSpriteMaskShape = null
   let tempSpriteHeight = 0
   
-  scene.load.image(tempBuildingKey, '/templates/cubes1/0.png')
+  scene.load.image(tempBuildingKey, assetUrl('/templates/cubes1/0.png'))
   scene.load.once('complete', () => {
     tempSprite = scene.add.sprite(gridX + offsetX, gridY + TILE_HEIGHT + offsetY, tempBuildingKey)
     const tempScale = effectiveTargetWidth / tempSprite.width
@@ -601,7 +603,7 @@ export function startBuildingAnimation(scene, params) {
   let tempSpriteMaskShape = null
   let tempSpriteHeight = 0
   
-  scene.load.image(tempBuildingKey, '/templates/cubes1/0.png')
+  scene.load.image(tempBuildingKey, assetUrl('/templates/cubes1/0.png'))
   scene.load.once('complete', () => {
     tempSprite = scene.add.sprite(x + offsetX, y + TILE_HEIGHT + offsetY, tempBuildingKey)
     const tempScale = targetWidth / tempSprite.width

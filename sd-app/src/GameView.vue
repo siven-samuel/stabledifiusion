@@ -11,6 +11,7 @@ import Modal from './components/Modal.vue'
 import AstronautSprite from './components/AstronautSprite.vue'
 import { buildRoad, regenerateRoadTilesOnCanvas } from './utils/roadBuilder.js'
 import { loadProject } from './utils/projectLoader.js'
+import { assetUrl } from './utils/assetUrl.js'
 import { 
   calculateResourceUsage,
   calculateStoredResources,
@@ -57,7 +58,7 @@ const personSpawnEnabled = ref(false)
 const personSpawnCount = ref(0)
 const resources = ref([])
 const workforce = ref([])
-const roadSpriteUrl = ref('/templates/roads/sprites/pastroad.png')
+const roadSpriteUrl = ref(assetUrl('/templates/roads/sprites/pastroad.png'))
 const roadOpacity = ref(100)
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const gameTime = ref(0) // Herný čas v milisekundách
@@ -2252,7 +2253,7 @@ onMounted(() => {
       try {
         isLoading.value = true
         loadingStatus.value = 'Loading game data...'
-        const response = await fetch('/templates/all/isometric-gameplay-1771767207345.json')
+        const response = await fetch(assetUrl('/templates/all/isometric-gameplay-1771767207345.json'))
         if (!response.ok) throw new Error('Failed to load game data')
         const projectData = await response.json()
         handleLoadProject(projectData)
@@ -2844,7 +2845,7 @@ onUnmounted(() => {
       ref="astronautRef"
       :active="astronautActive"
       bubbleText="Hello!"
-      spriteUrl="/templates/all/advisor3.png"
+      :spriteUrl="assetUrl('/templates/all/advisor3.png')"
       :cols="3"
       :rows="2"
       :frameWidth="116"

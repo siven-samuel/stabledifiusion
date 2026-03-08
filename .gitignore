@@ -44,6 +44,14 @@ sd-app/public/generated/
 *.jpg
 *.jpeg
 
+# But allow images in public templates/enviroment (needed for deployment)
+!sd-app/public/templates/**/*.png
+!sd-app/public/templates/**/*.jpg
+!sd-app/public/templates/**/*.jpeg
+!sd-app/public/enviroment/**/*.png
+!sd-app/public/enviroment/**/*.jpg
+!sd-app/public/enviroment/**/*.jpeg
+
 # Logs
 *.log
 

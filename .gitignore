@@ -40,17 +40,11 @@ sd-backend/lora_models/*.safetensors
 
 # Vygenerované obrázky
 sd-app/public/generated/
-*.png
-*.jpg
-*.jpeg
 
-# But allow images in public templates/enviroment (needed for deployment)
-!sd-app/public/templates/**/*.png
-!sd-app/public/templates/**/*.jpg
-!sd-app/public/templates/**/*.jpeg
-!sd-app/public/enviroment/**/*.png
-!sd-app/public/enviroment/**/*.jpg
-!sd-app/public/enviroment/**/*.jpeg
+# Ignore generated images in sd-backend output
+sd-backend/*.png
+sd-backend/*.jpg
+sd-backend/*.jpeg
 
 # Logs
 *.log

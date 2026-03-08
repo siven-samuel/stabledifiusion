@@ -4,6 +4,7 @@
  */
 
 import roadTileManager from './roadTileManager.js'
+import { assetUrl } from './assetUrl.js'
 
 /**
  * Načíta road tiles zo sprite sheetu
@@ -234,7 +235,7 @@ export async function loadProject(projectData, canvasRef, onProgress = null) {
   
   try {
     // 1. Načítaj road tiles
-    const roadSpriteUrl = projectData.roadSpriteUrl || '/templates/roads/sprites/pastroad.png'
+    const roadSpriteUrl = projectData.roadSpriteUrl || assetUrl('/templates/roads/sprites/pastroad.png')
     const roadOpacity = projectData.roadOpacity || 100
     
     let roadTiles = []

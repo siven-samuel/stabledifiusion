@@ -10,6 +10,7 @@ import ResourceDisplay from './components/ResourceDisplay.vue'
 import { calculateStoredResources } from './utils/resourceCalculator.js'
 import Modal from './components/Modal.vue'
 import { buildRoad, regenerateRoadTilesOnCanvas } from './utils/roadBuilder.js'
+import { assetUrl } from './utils/assetUrl.js'
 
 const images = ref([])
 const lastImageCellsX = ref(1)
@@ -40,7 +41,7 @@ const carSpawnCount = ref(0)
 const resources = ref([]) // Resources list
 const workforce = ref([]) // Workforce list
 const gameEvents = ref([]) // Zoznam herných eventov
-const roadSpriteUrl = ref('/templates/roads/sprites/pastroad.png') // Aktuálny road sprite URL
+const roadSpriteUrl = ref(assetUrl('/templates/roads/sprites/pastroad.png')) // Aktuálny road sprite URL
 const roadOpacity = ref(100) // Aktuálna opacity pre road tiles
 const viewMode = ref('editor') // 'editor' alebo 'gameplay'
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
@@ -553,7 +554,7 @@ const handleLoadProject = (projectData) => {
   const loadedTextureSettings = projectData.textureSettings || { tilesPerImage: 1, tileResolution: 512, customTexture: null }
   const loadedResources = projectData.resources || []
   const loadedWorkforce = projectData.workforce || []
-  const loadedRoadSpriteUrl = projectData.roadSpriteUrl || '/templates/roads/sprites/pastroad.png'
+  const loadedRoadSpriteUrl = projectData.roadSpriteUrl || assetUrl('/templates/roads/sprites/pastroad.png')
   const loadedRoadOpacity = projectData.roadOpacity || 100
   
   // Obnov farby prostredia

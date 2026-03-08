@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import Modal from './Modal.vue'
 import ResourceManager from './ResourceManager.vue'
 import EventEmitter from './EventEmitter.vue'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -55,7 +56,7 @@ const props = defineProps({
   },
   roadSpriteUrl: {
     type: String,
-    default: '/templates/roads/sprites/pastroad.png'
+    default: assetUrl('/templates/roads/sprites/pastroad.png')
   },
   roadOpacity: {
     type: Number,
@@ -311,7 +312,7 @@ const saveProject = () => {
       workforce: props.workforce || [],
       events: props.events || [],
       gameTime: props.gameTime || 0,
-      roadSpriteUrl: props.roadSpriteUrl || '/templates/roads/sprites/pastroad.png',
+      roadSpriteUrl: props.roadSpriteUrl || assetUrl('/templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
       buildingProductionStates: Object.entries(props.buildingProductionStates || {}).reduce((acc, [key, state]) => {
         // Uloží len enabled flag a buildingData, nie interval (funkciu)
@@ -485,7 +486,7 @@ const saveGameplayProject = async () => {
       workforce: props.workforce || [],
       events: props.events || [],
       gameTime: props.gameTime || 0,
-      roadSpriteUrl: props.roadSpriteUrl || '/templates/roads/sprites/pastroad.png',
+      roadSpriteUrl: props.roadSpriteUrl || assetUrl('/templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
       buildingProductionStates: Object.entries(props.buildingProductionStates || {}).reduce((acc, [key, state]) => {
         // Uloží len enabled flag a buildingData, nie interval (funkciu)
@@ -619,7 +620,7 @@ const handleFileUpload = async (event) => {
       workforce: projectData.workforce || [],
       events: projectData.events || [],
       gameTime: projectData.gameTime || 0,
-      roadSpriteUrl: projectData.roadSpriteUrl || '/templates/roads/sprites/pastroad.png',
+      roadSpriteUrl: projectData.roadSpriteUrl || assetUrl('/templates/roads/sprites/pastroad.png'),
       roadOpacity: projectData.roadOpacity || 100,
       buildingProductionStates: projectData.buildingProductionStates || {}
     })

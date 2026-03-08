@@ -14,6 +14,7 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const emit = defineEmits(['bubble-clicked'])
 
@@ -30,7 +31,7 @@ const PRIORITY = {
 const props = defineProps({
   spriteUrl: {
     type: String,
-    default: '/astronaut-sprite.png'
+    default: assetUrl('/astronaut-sprite.png')
   },
   // Number of columns in the sprite sheet
   cols: {

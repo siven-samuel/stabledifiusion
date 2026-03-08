@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const emit = defineEmits(['template-selected', 'tab-changed', 'road-sprite-selected'])
 
@@ -40,7 +41,7 @@ const getTemplateFolder = (tab) => {
 
 const selectTemplate = (template) => {
   const folder = getTemplateFolder(activeTemplateTab.value)
-  const templatePath = `/templates/${folder}/${template}`
+  const templatePath = assetUrl(`/templates/${folder}/${template}`)
   
   selectedTemplate.value = template
   
@@ -169,7 +170,7 @@ const selectTemplate = (template) => {
         class="template-item"
       >
         <img 
-          :src="`/templates/${getTemplateFolder(activeTemplateTab)}/${template}`" 
+          :src="assetUrl(`/templates/${getTemplateFolder(activeTemplateTab)}/${template}`)" 
           :alt="template"
         />
       </div>

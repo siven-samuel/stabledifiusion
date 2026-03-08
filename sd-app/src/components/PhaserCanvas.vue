@@ -6,6 +6,7 @@ import { CarManager } from '../utils/carManager.js'
 import { loadPersonGifFrames } from '../utils/gifFrameExtractor.js'
 import { startBuildingAnimation, startRecycleAnimation } from '../utils/buildingAnimationService.js'
 import { findNearestCar, dispatchCarToBuilding } from '../utils/carDispatchService.js'
+import { assetUrl } from '../utils/assetUrl.js'
 
 const props = defineProps({
   images: Array,
@@ -193,17 +194,17 @@ class IsoScene extends Phaser.Scene {
     // Person GIF sa načíta asynchrónne v create() cez gifFrameExtractor
     
     // Načítame sprite auta
-    this.load.image('car1', '/templates/roads/sprites/car-dawn-top-right.png')
+    this.load.image('car1', assetUrl('/templates/roads/sprites/car-dawn-top-right.png'))
     
     // Načítame sprite auta
-    this.load.image('car1', '/templates/roads/sprites/car-dawn-top-right.png')
-    this.load.image('car2', '/templates/roads/sprites/car-down-top-left.png')
+    this.load.image('car1', assetUrl('/templates/roads/sprites/car-dawn-top-right.png'))
+    this.load.image('car2', assetUrl('/templates/roads/sprites/car-down-top-left.png'))
     
     // Načítame smoke textúru pre efekt dymu
     this.load.image('smoke', 'https://labs.phaser.io/assets/particles/white-smoke.png')
     
     // Načítame construct.png pre stavebné animácie
-    this.load.image('construct', '/templates/cubes1/contruct.png')
+    this.load.image('construct', assetUrl('/templates/cubes1/contruct.png'))
   }
 
   create() {
@@ -1671,7 +1672,7 @@ class IsoScene extends Phaser.Scene {
       // Extrahujeme 3. postavu (index 2) pre front walk (row+, col+ smer)
       const front = await loadPersonGifFrames(
         this,
-        '/templates/roads/sprites/persons-mini-astro.gif',
+        assetUrl('/templates/roads/sprites/persons-mini-astro.gif'),
         5,  // 5 postáv vedľa seba v GIF
         2,  // index 2 = 3. postava
         'person_front'
@@ -1680,7 +1681,7 @@ class IsoScene extends Phaser.Scene {
       // Extrahujeme 2. postavu (index 1) pre back walk (col-, row- smer)
       const back = await loadPersonGifFrames(
         this,
-        '/templates/roads/sprites/persons-mini-astro.gif',
+        assetUrl('/templates/roads/sprites/persons-mini-astro.gif'),
         5,  // 5 postáv vedľa seba v GIF
         1,  // index 1 = 2. postava
         'person_back'

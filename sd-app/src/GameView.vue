@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import PhaserCanvas from './components/PhaserCanvas.vue'
 import ProjectManager from './components/ProjectManager.vue'
 import GameClock from './components/GameClock.vue'
@@ -26,6 +27,8 @@ import {
   buildConsumptionMap,
   evaluateResourcePriority
 } from './utils/resourcePriorityService.js'
+
+const route = useRoute()
 
 const images = ref([])
 const lastImageCellsX = ref(1)
@@ -91,6 +94,21 @@ const consumptionMap = ref({}) // Mapa spotreby surovín pre priority service: {
 
 // Hamburger menu state
 const hamburgerOpen = ref(false)
+
+// Fullscreen state
+const isFullscreen = ref(false)
+
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen()
+  } else {
+    document.exitFullscreen()
+  }
+}
+
+const onFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
 
 // Event trigger system
 const showEventModal = ref(false) // Whether the event modal is shown
@@ -2226,10 +2244,29 @@ const handleReorderBuildings = (newOrder) => {
 // Lifecycle - document click outside listener
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentClick)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+
+  // Auto-load project if navigated from Play button
+  if (route.query.autoload === '1') {
+    setTimeout(async () => {
+      try {
+        isLoading.value = true
+        loadingStatus.value = 'Loading game data...'
+        const response = await fetch('/templates/all/isometric-gameplay-1771767207345.json')
+        if (!response.ok) throw new Error('Failed to load game data')
+        const projectData = await response.json()
+        handleLoadProject(projectData)
+      } catch (error) {
+        console.error('Failed to load game data:', error)
+        isLoading.value = false
+      }
+    }, 500)
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', handleDocumentClick)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 </script>
 
@@ -2268,6 +2305,7 @@ onUnmounted(() => {
       :selectedBuildingDestinationTiles="selectedBuildingDestinationTiles"
       :selectedBuildingCanBuildOnlyInDestination="selectedBuildingCanBuildOnlyInDestination"
       :showPerson="showPerson"
+      :isFullscreen="isFullscreen"
       @cell-selected="handleCellSelected"
       @image-placed="handleImagePlaced"
       @road-placed="handleRoadPlaced"
@@ -2281,11 +2319,19 @@ onUnmounted(() => {
     <!-- Top Resource Bar -->
     <div class="top-resource-bar">
       <!-- Hamburger button -->
+      <div class="top-warpper">
       <button class="hamburger-btn" @click="hamburgerOpen = !hamburgerOpen" :class="{ open: hamburgerOpen }">
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
         <span class="hamburger-line"></span>
       </button>
+
+      <!-- Fullscreen button -->
+      <button class="fullscreen-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'">
+        <span v-if="!isFullscreen">⛶</span>
+        <span v-else>⛶</span>
+      </button>
+      </div>
 
       <!-- ResourceDisplay in top bar -->
       <ResourceDisplay 
@@ -2797,7 +2843,7 @@ onUnmounted(() => {
     <AstronautSprite
       ref="astronautRef"
       :active="astronautActive"
-      bubbleText="Hello!c sdsdsdsddddddddddddd sdsadsa sadsadsa. asdasdasd dsdsadasd ssdasdasd sdsadasd"
+      bubbleText="Hello!"
       spriteUrl="/templates/all/advisor3.png"
       :cols="3"
       :rows="2"
@@ -2854,6 +2900,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
     'Helvetica Neue', sans-serif;
   overflow: hidden;
+}
+
+top-warpper {
+  display: flex;
+  gap: 5px;
+  flex-direction: column;
 }
 
 #game-view {
@@ -2916,6 +2968,32 @@ body {
 }
 
 .hamburger-btn:hover {
+  background: rgba(102, 126, 234, 1);
+  transform: scale(1.05);
+}
+
+/* Fullscreen Button */
+.fullscreen-btn {
+  position: relative;
+    max-width: 40px;
+    height: 40px;
+    padding: 22px;
+    margin: 5px;
+    background: rgba(102, 126, 234, 0.9);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.3s;
+    z-index: 15;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.fullscreen-btn:hover {
   background: rgba(102, 126, 234, 1);
   transform: scale(1.05);
 }

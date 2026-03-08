@@ -666,15 +666,15 @@ const clearProject = () => {
       <!-- Mode switcher -->
       <div class="mode-switcher">
         <button 
-          @click="router.push('/')" 
-          :class="['mode-btn', { active: route.path === '/' }]"
+          @click="router.push('/editor')" 
+          :class="['mode-btn', { active: route.path === '/editor' }]"
           title="Editor mode - generate and edit"
         >
           🎨 Editor
         </button>
         <button 
-          @click="router.push('/game')" 
-          :class="['mode-btn', { active: route.path === '/game' }]"
+          @click="router.push('/gameplay')" 
+          :class="['mode-btn', { active: route.path === '/gameplay' }]"
           title="Game Play mode - display resources"
         >
           🎮 Game Play

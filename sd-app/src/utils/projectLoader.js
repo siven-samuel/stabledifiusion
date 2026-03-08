@@ -125,6 +125,14 @@ export async function loadPlacedObjects(canvasRef, placedImages, roadTiles, imag
       let finalBitmap = null
       let finalBuildingData = buildingData || null
       
+      // Ak URL chýba alebo je null, rekonštruuj z imageLibrary podľa imageId
+      if (!finalUrl && imageId && imageLibrary && imageLibrary.length > 0) {
+        const sourceImage = imageLibrary.find(img => img.id === imageId)
+        if (sourceImage && sourceImage.url) {
+          finalUrl = sourceImage.url
+        }
+      }
+
       // Ak buildingData chýba, skús ho rekonštruovať z imageLibrary podľa imageId alebo url
       if (!finalBuildingData && imageLibrary && imageLibrary.length > 0) {
         // Najprv skús nájsť pomocou imageId

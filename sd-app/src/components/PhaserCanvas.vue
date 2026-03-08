@@ -93,6 +93,10 @@ const props = defineProps({
   showPerson: {
     type: Boolean,
     default: true
+  },
+  isFullscreen: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -283,6 +287,50 @@ class IsoScene extends Phaser.Scene {
       }
     }
     document.addEventListener('visibilitychange', this._onVisibilityChange)
+
+    // Edge scrolling - scroll camera when mouse is near screen edge (only in fullscreen)
+    this._edgeScrollMargin = 1
+    this._edgeScrollMarginTop = 7
+    this._edgeScrollSpeed = 6
+    this._edgeScrollDx = 0
+    this._edgeScrollDy = 0
+    this._edgeScrollTimer = null
+
+    this._onEdgeMouseMove = (e) => {
+      if (!props.isFullscreen) {
+        this._edgeScrollDx = 0
+        this._edgeScrollDy = 0
+        return
+      }
+      const w = window.innerWidth
+      const h = window.innerHeight
+      const mx = e.clientX
+      const my = e.clientY
+      const m = this._edgeScrollMargin
+      let dx = 0, dy = 0
+      if (mx <= m) dx = -1
+      else if (mx >= w - m - 1) dx = 1
+      if (my <= this._edgeScrollMarginTop) dy = -1
+      else if (my >= h - m - 1) dy = 1
+      this._edgeScrollDx = dx
+      this._edgeScrollDy = dy
+    }
+    document.addEventListener('mousemove', this._onEdgeMouseMove)
+
+    this._edgeScrollTimer = this.time.addEvent({
+      delay: 16,
+      loop: true,
+      callback: () => {
+        if (this.isDragging) return
+        const dx = this._edgeScrollDx
+        const dy = this._edgeScrollDy
+        if (dx !== 0 || dy !== 0) {
+          const speed = this._edgeScrollSpeed / this.cameras.main.zoom
+          this.cameras.main.scrollX += dx * speed
+          this.cameras.main.scrollY += dy * speed
+        }
+      }
+    })
   }
 
   // Zapne/vypne efekt na celú hraciu plochu
@@ -4454,6 +4502,10 @@ onUnmounted(() => {
   // Remove visibility change listener
   if (mainScene?._onVisibilityChange) {
     document.removeEventListener('visibilitychange', mainScene._onVisibilityChange)
+  }
+  // Remove edge scroll listener
+  if (mainScene?._onEdgeMouseMove) {
+    document.removeEventListener('mousemove', mainScene._onEdgeMouseMove)
   }
   if (game) {
     game.destroy(true)

@@ -32,16 +32,23 @@ current_lora = {
 }
 
 def get_available_loras():
-    """Vráti zoznam dostupných LoRA modelov"""
+    """Vráti zoznam dostupných LoRA modelov (aj v podpriečinkoch)"""
     if not os.path.exists(LORA_DIR):
         os.makedirs(LORA_DIR, exist_ok=True)
         return []
     
     loras = []
-    for file in Path(LORA_DIR).iterdir():
+    for file in Path(LORA_DIR).rglob('*'):
         if file.suffix in ['.safetensors', '.pt', '.bin']:
-            loras.append(file.stem)  # názov bez prípony
+            loras.append(file.stem)
     return loras
+
+def find_lora_path(lora_name):
+    """Nájde cestu k LoRA súboru podľa názvu (aj v podpriečinkoch)"""
+    for ext in ['.safetensors', '.pt', '.bin']:
+        for file in Path(LORA_DIR).rglob(f'{lora_name}{ext}'):
+            return str(file)
+    return None
 
 def load_lora_to_pipeline(pipe_entry, lora_name, lora_scale=0.9):
     """
@@ -63,12 +70,9 @@ def load_lora_to_pipeline(pipe_entry, lora_name, lora_scale=0.9):
             current_lora['scale'] = None
         return
     
-    lora_path = os.path.join(LORA_DIR, f"{lora_name}.safetensors")
-    if not os.path.exists(lora_path):
-        # Skúsime .pt
-        lora_path = os.path.join(LORA_DIR, f"{lora_name}.pt")
-        if not os.path.exists(lora_path):
-            raise FileNotFoundError(f"LoRA súbor nenájdený: {lora_name}")
+    lora_path = find_lora_path(lora_name)
+    if not lora_path:
+        raise FileNotFoundError(f"LoRA súbor nenájdený: {lora_name}")
     
     print(f"🎨 Načítavam LoRA: {lora_name} (scale={lora_scale})")
     

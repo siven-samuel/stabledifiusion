@@ -641,28 +641,43 @@ defineExpose({
           </div>
 
           <!-- LoRA výber -->
-          <div v-if="availableLoras.length > 0" class="input-group lora-section">
+          <div class="input-group lora-section">
             <label for="lora-select">🎨 LoRA Model</label>
             
-            <!-- Checkbox pre zobrazenie všetkých LoRA -->
-            <div class="lora-filter-checkbox">
-              <label class="checkbox-label-inline">
-                <input 
-                  type="checkbox" 
-                  v-model="showAllLoras"
-                  :disabled="isGenerating"
-                />
-                <span>Show all LoRA</span>
-              </label>
-              <span class="lora-count">({{ filteredLoras.length }} z {{ availableLoras.length }})</span>
+            <div v-if="availableLoras.length > 0">
+              <!-- Checkbox pre zobrazenie všetkých LoRA -->
+              <div class="lora-filter-checkbox">
+                <label class="checkbox-label-inline">
+                  <input 
+                    type="checkbox" 
+                    v-model="showAllLoras"
+                    :disabled="isGenerating"
+                  />
+                  <span>Show all LoRA</span>
+                </label>
+                <span class="lora-count">({{ filteredLoras.length }} of {{ availableLoras.length }})</span>
+              </div>
+              
+              <select id="lora-select" v-model="selectedLora" :disabled="isGenerating">
+                <option value="">🚫 No LoRA</option>
+                <option v-for="lora in filteredLoras" :key="lora" :value="lora">
+                  {{ lora }}
+                </option>
+              </select>
             </div>
             
-            <select id="lora-select" v-model="selectedLora" :disabled="isGenerating">
-              <option value="">🚫 No LoRA</option>
-              <option v-for="lora in filteredLoras" :key="lora" :value="lora">
-                {{ lora }}
-              </option>
-            </select>
+            <div v-else>
+              <input
+                id="lora-manual"
+                type="text"
+                v-model="selectedLora"
+                placeholder="LoRA name (e.g. Iso-Pixel-05)"
+                :disabled="isGenerating"
+              />
+              <small style="color: #999; font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                Backend not connected — enter LoRA name manually
+              </small>
+            </div>
             
             <div v-if="selectedLora" class="slider-group">
               <label for="lora-scale">

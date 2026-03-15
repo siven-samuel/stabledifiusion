@@ -11,6 +11,8 @@ import { calculateStoredResources } from './utils/resourceCalculator.js'
 import Modal from './components/Modal.vue'
 import { buildRoad, regenerateRoadTilesOnCanvas } from './utils/roadBuilder.js'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const images = ref([])
 const lastImageCellsX = ref(1)
 const lastImageCellsY = ref(1)
@@ -40,8 +42,10 @@ const carSpawnCount = ref(0)
 const resources = ref([]) // Resources list
 const workforce = ref([]) // Workforce list
 const gameEvents = ref([]) // Zoznam herných eventov
-const roadSpriteUrl = ref('/templates/roads/sprites/pastroad.png') // Aktuálny road sprite URL
+const roadSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/pastroad.png') // Aktuálny road sprite URL
 const roadOpacity = ref(100) // Aktuálna opacity pre road tiles
+const constructSpriteUrl = ref(BASE_URL + 'templates/cubes1/contruct.png') // Construction sprite URL
+const tempBuildingSpriteUrl = ref(BASE_URL + 'templates/cubes1/0.png') // Temp building sprite URL
 const viewMode = ref('editor') // 'editor' alebo 'gameplay'
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const showInsufficientResourcesModal = ref(false)
@@ -289,6 +293,21 @@ const handleRoadOpacityChanged = (newOpacity) => {
 const handleTextureSettingsChange = (settings) => {
   textureSettings.value = settings
   console.log('📐 App.vue: Textúrové nastavenia zmenené:', settings)
+}
+
+const handleStructureSpriteChanged = ({ type, url }) => {
+  if (type === 'construct') {
+    constructSpriteUrl.value = url
+    if (canvasRef.value && canvasRef.value.updateStructureSprite) {
+      canvasRef.value.updateStructureSprite('construct', url)
+    }
+  } else if (type === 'tempBuilding') {
+    tempBuildingSpriteUrl.value = url
+    if (canvasRef.value && canvasRef.value.updateStructureSprite) {
+      canvasRef.value.updateStructureSprite('tempBuilding', url)
+    }
+  }
+  console.log(`🏗️ App.vue: Structure sprite '${type}' updated`)
 }
 
 const handleRoadPlaced = ({ path }) => {
@@ -553,8 +572,10 @@ const handleLoadProject = (projectData) => {
   const loadedTextureSettings = projectData.textureSettings || { tilesPerImage: 1, tileResolution: 512, customTexture: null }
   const loadedResources = projectData.resources || []
   const loadedWorkforce = projectData.workforce || []
-  const loadedRoadSpriteUrl = projectData.roadSpriteUrl || '/templates/roads/sprites/pastroad.png'
+  const loadedRoadSpriteUrl = projectData.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png')
   const loadedRoadOpacity = projectData.roadOpacity || 100
+  const loadedConstructSpriteUrl = projectData.constructSpriteUrl || (BASE_URL + 'templates/cubes1/contruct.png')
+  const loadedTempBuildingSpriteUrl = projectData.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png')
   
   // Obnov farby prostredia
   environmentColors.value = loadedColors
@@ -600,6 +621,15 @@ const handleLoadProject = (projectData) => {
     : loadedRoadSpriteUrl
   console.log('🛣️ App.vue: Road sprite URL načítané:', spriteInfo)
   console.log('🎨 App.vue: Road opacity načítaná:', loadedRoadOpacity + '%')
+  
+  // Obnov structure sprites
+  constructSpriteUrl.value = loadedConstructSpriteUrl
+  tempBuildingSpriteUrl.value = loadedTempBuildingSpriteUrl
+  if (canvasRef.value && canvasRef.value.updateStructureSprite) {
+    canvasRef.value.updateStructureSprite('construct', loadedConstructSpriteUrl)
+    canvasRef.value.updateStructureSprite('tempBuilding', loadedTempBuildingSpriteUrl)
+  }
+  console.log('🏗️ App.vue: Structure sprites načítané')
   
   // Aplikuj background tiles na šachovnicu
   if (loadedTiles.length > 0 && canvasRef.value && canvasRef.value.setBackgroundTiles) {
@@ -1135,6 +1165,8 @@ const handleCanvasUpdated = () => {
         :workforce="workforce"
         :roadSpriteUrl="roadSpriteUrl"
         :roadOpacity="roadOpacity"
+        :constructSpriteUrl="constructSpriteUrl"
+        :tempBuildingSpriteUrl="tempBuildingSpriteUrl"
         :events="gameEvents"
         @load-project="handleLoadProject"
         @update:showNumbering="showNumbering = $event"
@@ -1220,6 +1252,8 @@ const handleCanvasUpdated = () => {
         :resources="resources"
         :workforce="workforce"
         :roadSpriteUrl="roadSpriteUrl"
+        :constructSpriteUrl="constructSpriteUrl"
+        :tempBuildingSpriteUrl="tempBuildingSpriteUrl"
         @delete="handleDelete" 
         @select="handleSelectImage"
         @place-on-board="handlePlaceOnBoard"
@@ -1236,6 +1270,7 @@ const handleCanvasUpdated = () => {
         @destination-mode-finished="handleDestinationModeFinished"
         @replace-image-url="handleReplaceImageUrl"
         @reorder-images="handleReorderImages"
+        @structure-sprite-changed="handleStructureSpriteChanged"
       />
     </div>
     

@@ -6,7 +6,7 @@
 class RoadTileManager {
   constructor() {
     this.tiles = []
-    this.spriteUrl = '/templates/roads/sprites/pastroad.png'
+    this.spriteUrl = (typeof import.meta !== 'undefined' ? import.meta.env.BASE_URL : '/') + 'templates/roads/sprites/pastroad.png'
     this.opacity = 100
     this.isLoading = false
   }

@@ -30,6 +30,8 @@ import {
 
 const route = useRoute()
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const images = ref([])
 const lastImageCellsX = ref(1)
 const lastImageCellsY = ref(1)
@@ -57,7 +59,7 @@ const personSpawnEnabled = ref(false)
 const personSpawnCount = ref(0)
 const resources = ref([])
 const workforce = ref([])
-const roadSpriteUrl = ref('/templates/roads/sprites/pastroad.png')
+const roadSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/pastroad.png')
 const roadOpacity = ref(100)
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const gameTime = ref(0) // Herný čas v milisekundách
@@ -2252,7 +2254,7 @@ onMounted(() => {
       try {
         isLoading.value = true
         loadingStatus.value = 'Loading game data...'
-        const response = await fetch('/templates/all/isometric-gameplay-1771767207345.json')
+        const response = await fetch(BASE_URL + 'templates/all/isometric-gameplay-1771767207345.json')
         if (!response.ok) throw new Error('Failed to load game data')
         const projectData = await response.json()
         handleLoadProject(projectData)
@@ -2844,7 +2846,7 @@ onUnmounted(() => {
       ref="astronautRef"
       :active="astronautActive"
       bubbleText="Hello!"
-      spriteUrl="/templates/all/advisor3.png"
+      :spriteUrl="BASE_URL + 'templates/all/advisor3.png'"
       :cols="3"
       :rows="2"
       :frameWidth="116"

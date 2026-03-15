@@ -5,6 +5,8 @@
 
 import roadTileManager from './roadTileManager.js'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 /**
  * Načíta road tiles zo sprite sheetu
  * @param {string} spriteUrl - URL sprite sheetu
@@ -234,7 +236,7 @@ export async function loadProject(projectData, canvasRef, onProgress = null) {
   
   try {
     // 1. Načítaj road tiles
-    const roadSpriteUrl = projectData.roadSpriteUrl || '/templates/roads/sprites/pastroad.png'
+    const roadSpriteUrl = projectData.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png')
     const roadOpacity = projectData.roadOpacity || 100
     
     let roadTiles = []

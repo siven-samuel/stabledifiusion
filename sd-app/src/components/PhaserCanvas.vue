@@ -7,6 +7,8 @@ import { loadPersonGifFrames } from '../utils/gifFrameExtractor.js'
 import { startBuildingAnimation, startRecycleAnimation } from '../utils/buildingAnimationService.js'
 import { findNearestCar, dispatchCarToBuilding } from '../utils/carDispatchService.js'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const props = defineProps({
   images: Array,
   selectedImageId: String,
@@ -178,6 +180,10 @@ class IsoScene extends Phaser.Scene {
     // Mapa disabled overlay efektov pre manuálne zastavené budovy
     this.disabledOverlays = {}
     
+    // Custom structure sprite URLs
+    this.constructSpriteUrl = BASE_URL + 'templates/cubes1/contruct.png'
+    this.tempBuildingSpriteUrl = BASE_URL + 'templates/cubes1/0.png'
+    
     // Night overlay
     this.nightOverlay = null
     this.nightTween = null
@@ -193,17 +199,14 @@ class IsoScene extends Phaser.Scene {
     // Person GIF sa načíta asynchrónne v create() cez gifFrameExtractor
     
     // Načítame sprite auta
-    this.load.image('car1', '/templates/roads/sprites/car-dawn-top-right.png')
-    
-    // Načítame sprite auta
-    this.load.image('car1', '/templates/roads/sprites/car-dawn-top-right.png')
-    this.load.image('car2', '/templates/roads/sprites/car-down-top-left.png')
+    this.load.image('car1', BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png')
+    this.load.image('car2', BASE_URL + 'templates/roads/sprites/car-down-top-left.png')
     
     // Načítame smoke textúru pre efekt dymu
     this.load.image('smoke', 'https://labs.phaser.io/assets/particles/white-smoke.png')
     
     // Načítame construct.png pre stavebné animácie
-    this.load.image('construct', '/templates/cubes1/contruct.png')
+    this.load.image('construct', BASE_URL + 'templates/cubes1/contruct.png')
   }
 
   create() {
@@ -1671,7 +1674,7 @@ class IsoScene extends Phaser.Scene {
       // Extrahujeme 3. postavu (index 2) pre front walk (row+, col+ smer)
       const front = await loadPersonGifFrames(
         this,
-        '/templates/roads/sprites/persons-mini-astro.gif',
+        BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif',
         5,  // 5 postáv vedľa seba v GIF
         2,  // index 2 = 3. postava
         'person_front'
@@ -1680,7 +1683,7 @@ class IsoScene extends Phaser.Scene {
       // Extrahujeme 2. postavu (index 1) pre back walk (col-, row- smer)
       const back = await loadPersonGifFrames(
         this,
-        '/templates/roads/sprites/persons-mini-astro.gif',
+        BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif',
         5,  // 5 postáv vedľa seba v GIF
         1,  // index 1 = 2. postava
         'person_back'
@@ -3879,6 +3882,22 @@ defineExpose({
   deleteImageAtCell,
   cellImages: () => cellImages,
   backgroundTiles: () => backgroundTiles,
+  // Update structure sprite (construct or tempBuilding)
+  updateStructureSprite: (type, url) => {
+    if (!mainScene) return
+    if (type === 'construct') {
+      mainScene.constructSpriteUrl = url
+      if (mainScene.textures.exists('construct')) {
+        mainScene.textures.remove('construct')
+      }
+      mainScene.load.image('construct', url)
+      mainScene.load.start()
+      console.log('🏗️ Construct sprite texture updated')
+    } else if (type === 'tempBuilding') {
+      mainScene.tempBuildingSpriteUrl = url
+      console.log('🏠 Temp building sprite URL updated')
+    }
+  },
   // Zapne batch loading mode - preskakuje tiene a osoby
   startBatchLoading: () => {
     isBatchLoading = true

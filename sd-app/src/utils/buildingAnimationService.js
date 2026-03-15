@@ -7,6 +7,7 @@ const DEFAULT_BUILDING_ANIMATION_DURATION = 10000 // ms - použije sa ak nie je 
 const MIN_ANIMATION_DURATION = 3000 // ms - minimálna doba animácie
 const TILE_WIDTH = 64
 const TILE_HEIGHT = 32
+const BASE_URL = import.meta.env.BASE_URL
 
 /**
  * Vypočíta dobu animácie na základe buildCost
@@ -217,7 +218,7 @@ export function startRecycleAnimation(scene, params) {
   let tempSpriteMaskShape = null
   let tempSpriteHeight = 0
   
-  scene.load.image(tempBuildingKey, '/templates/cubes1/0.png')
+  scene.load.image(tempBuildingKey, scene.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'))
   scene.load.once('complete', () => {
     tempSprite = scene.add.sprite(gridX + offsetX, gridY + TILE_HEIGHT + offsetY, tempBuildingKey)
     const tempScale = effectiveTargetWidth / tempSprite.width
@@ -601,7 +602,7 @@ export function startBuildingAnimation(scene, params) {
   let tempSpriteMaskShape = null
   let tempSpriteHeight = 0
   
-  scene.load.image(tempBuildingKey, '/templates/cubes1/0.png')
+  scene.load.image(tempBuildingKey, scene.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'))
   scene.load.once('complete', () => {
     tempSprite = scene.add.sprite(x + offsetX, y + TILE_HEIGHT + offsetY, tempBuildingKey)
     const tempScale = targetWidth / tempSprite.width

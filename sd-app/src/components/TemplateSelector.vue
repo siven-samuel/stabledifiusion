@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const emit = defineEmits(['template-selected', 'tab-changed', 'road-sprite-selected'])
 
 const activeTemplateTab = ref('buildings')
@@ -40,7 +42,7 @@ const getTemplateFolder = (tab) => {
 
 const selectTemplate = (template) => {
   const folder = getTemplateFolder(activeTemplateTab.value)
-  const templatePath = `/templates/${folder}/${template}`
+  const templatePath = `${BASE_URL}templates/${folder}/${template}`
   
   selectedTemplate.value = template
   
@@ -169,7 +171,7 @@ const selectTemplate = (template) => {
         class="template-item"
       >
         <img 
-          :src="`/templates/${getTemplateFolder(activeTemplateTab)}/${template}`" 
+          :src="`${BASE_URL}templates/${getTemplateFolder(activeTemplateTab)}/${template}`" 
           :alt="template"
         />
       </div>

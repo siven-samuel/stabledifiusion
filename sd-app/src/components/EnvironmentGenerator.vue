@@ -2,6 +2,8 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import TextureColorPicker from './TextureColorPicker.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const props = defineProps({
   initialColors: {
     type: Object,
@@ -282,7 +284,7 @@ watch(() => props.initialTextureSettings, (newSettings) => {
         </div>
         
         <TextureColorPicker 
-          :texture-path="customTexture || '/enviroment/grass.jpg'"
+          :texture-path="customTexture || (BASE_URL + 'enviroment/grass.jpg')"
           :initial-colors="textureColors"
           :initial-tiles-per-image="tilesPerImage"
           :initial-tile-resolution="tileResolution"

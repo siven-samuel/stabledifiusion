@@ -30,7 +30,7 @@ const PRIORITY = {
 const props = defineProps({
   spriteUrl: {
     type: String,
-    default: '/astronaut-sprite.png'
+    default: import.meta.env.BASE_URL + 'astronaut-sprite.png'
   },
   // Number of columns in the sprite sheet
   cols: {

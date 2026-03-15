@@ -5,6 +5,8 @@ import Modal from './Modal.vue'
 import ResourceManager from './ResourceManager.vue'
 import EventEmitter from './EventEmitter.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const router = useRouter()
 const route = useRoute()
 
@@ -55,11 +57,19 @@ const props = defineProps({
   },
   roadSpriteUrl: {
     type: String,
-    default: '/templates/roads/sprites/pastroad.png'
+    default: import.meta.env.BASE_URL + 'templates/roads/sprites/pastroad.png'
   },
   roadOpacity: {
     type: Number,
     default: 100
+  },
+  constructSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/cubes1/contruct.png'
+  },
+  tempBuildingSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/cubes1/0.png'
   },
   allocatedResources: {
     type: Object,
@@ -311,8 +321,10 @@ const saveProject = () => {
       workforce: props.workforce || [],
       events: props.events || [],
       gameTime: props.gameTime || 0,
-      roadSpriteUrl: props.roadSpriteUrl || '/templates/roads/sprites/pastroad.png',
+      roadSpriteUrl: props.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
+      constructSpriteUrl: props.constructSpriteUrl || (BASE_URL + 'templates/cubes1/contruct.png'),
+      tempBuildingSpriteUrl: props.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'),
       buildingProductionStates: Object.entries(props.buildingProductionStates || {}).reduce((acc, [key, state]) => {
         // Uloží len enabled flag a buildingData, nie interval (funkciu)
         acc[key] = {
@@ -485,8 +497,10 @@ const saveGameplayProject = async () => {
       workforce: props.workforce || [],
       events: props.events || [],
       gameTime: props.gameTime || 0,
-      roadSpriteUrl: props.roadSpriteUrl || '/templates/roads/sprites/pastroad.png',
+      roadSpriteUrl: props.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
+      constructSpriteUrl: props.constructSpriteUrl || (BASE_URL + 'templates/cubes1/contruct.png'),
+      tempBuildingSpriteUrl: props.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'),
       buildingProductionStates: Object.entries(props.buildingProductionStates || {}).reduce((acc, [key, state]) => {
         // Uloží len enabled flag a buildingData, nie interval (funkciu)
         acc[key] = {
@@ -619,8 +633,10 @@ const handleFileUpload = async (event) => {
       workforce: projectData.workforce || [],
       events: projectData.events || [],
       gameTime: projectData.gameTime || 0,
-      roadSpriteUrl: projectData.roadSpriteUrl || '/templates/roads/sprites/pastroad.png',
+      roadSpriteUrl: projectData.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: projectData.roadOpacity || 100,
+      constructSpriteUrl: projectData.constructSpriteUrl || (BASE_URL + 'templates/cubes1/contruct.png'),
+      tempBuildingSpriteUrl: projectData.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'),
       buildingProductionStates: projectData.buildingProductionStates || {}
     })
 

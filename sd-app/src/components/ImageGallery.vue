@@ -32,7 +32,15 @@ const props = defineProps({
   },
   roadSpriteUrl: {
     type: String,
-    default: '/templates/roads/sprites/pastroad.png'
+    default: import.meta.env.BASE_URL + 'templates/roads/sprites/pastroad.png'
+  },
+  constructSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/cubes1/contruct.png'
+  },
+  tempBuildingSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/cubes1/0.png'
   }
 })
 
@@ -52,16 +60,21 @@ const emit = defineEmits([
   'destination-mode-started',
   'destination-mode-finished',
   'replace-image-url',
-  'reorder-images'
+  'reorder-images',
+  'structure-sprite-changed'
 ])
 
 const selectedImage = ref(null)
 const selectedGridSize = ref(1) // 1, 4, 9, 16, 25, alebo -1 pre režim mazania
-const activeGalleryTab = ref('roads') // 'gallery' alebo 'roads'
+const activeGalleryTab = ref('roads') // 'gallery', 'roads' alebo 'structures'
 const roadTiles = ref([]) // Road tiles - synchronizované s roadTileManager
 const roadTilesOriginal = ref([]) // Kópia pre referenčné účely
 const roadBuildingMode = ref(true) // Režim stavby ciest - automatický výber tiles
 const roadOpacity = ref(100) // Opacity pre road tiles (0-100)
+// Structure sprites
+const localConstructSpriteUrl = ref(props.constructSpriteUrl)
+const localTempBuildingSpriteUrl = ref(props.tempBuildingSpriteUrl)
+
 const spawnPersonsEnabled = ref(props.personSpawnEnabled) // Či pridať osoby pri kliknutí na road tile
 const personsPerPlacement = ref(props.personSpawnCount) // Počet osôb na jedno umiestnenie road tile
 
@@ -327,6 +340,33 @@ watch(() => props.roadSpriteUrl, (newUrl) => {
     loadRoadSprite(newUrl)
   }
 })
+
+// Watch na zmenu structure sprite props
+watch(() => props.constructSpriteUrl, (newUrl) => {
+  if (newUrl) localConstructSpriteUrl.value = newUrl
+})
+watch(() => props.tempBuildingSpriteUrl, (newUrl) => {
+  if (newUrl) localTempBuildingSpriteUrl.value = newUrl
+})
+
+// Upload handler pre structure sprites
+const handleStructureSpriteUpload = (event, type) => {
+  const file = event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const dataUrl = e.target.result
+    if (type === 'construct') {
+      localConstructSpriteUrl.value = dataUrl
+    } else {
+      localTempBuildingSpriteUrl.value = dataUrl
+    }
+    emit('structure-sprite-changed', { type, url: dataUrl })
+    console.log(`🏗️ Structure sprite '${type}' updated`)
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
 
 // Watch pre zmenu tabu - aktivuj road building mode keď je roads tab
 watch(activeGalleryTab, (newTab) => {
@@ -799,7 +839,9 @@ defineExpose({
   isSettingDestination,
   addDestinationTile,
   isDestinationTile,
-  finishSettingDestination
+  finishSettingDestination,
+  localConstructSpriteUrl,
+  localTempBuildingSpriteUrl
 })
 </script>
 
@@ -871,6 +913,13 @@ defineExpose({
       class="gallery-tab-btn"
     >
       🛣️ Roads
+    </button>
+    <button 
+      @click="activeGalleryTab = 'structures'" 
+      :class="{ active: activeGalleryTab === 'structures' }"
+      class="gallery-tab-btn"
+    >
+      🏗️ Structures
     </button>
   </div>
   
@@ -977,6 +1026,32 @@ defineExpose({
           <img :src="tile.url" :alt="tile.name" />
           <div class="tile-label">{{ tile.name }}</div>
           <div v-if="tile.id === selectedImageId" class="selected-badge">✓</div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Structures tab content -->
+    <template v-else-if="activeGalleryTab === 'structures'">
+      <div class="structures-grid">
+        <div class="structure-sprite-card">
+          <div class="structure-label">🔨 Construction Sprite</div>
+          <div class="structure-preview">
+            <img :src="localConstructSpriteUrl" alt="Construct sprite" />
+          </div>
+          <label class="btn-upload-sprite">
+            Upload
+            <input type="file" accept="image/*" @change="handleStructureSpriteUpload($event, 'construct')" hidden />
+          </label>
+        </div>
+        <div class="structure-sprite-card">
+          <div class="structure-label">🏠 Temp Building Sprite</div>
+          <div class="structure-preview">
+            <img :src="localTempBuildingSpriteUrl" alt="Temp building sprite" />
+          </div>
+          <label class="btn-upload-sprite">
+            Upload
+            <input type="file" accept="image/*" @change="handleStructureSpriteUpload($event, 'tempBuilding')" hidden />
+          </label>
         </div>
       </div>
     </template>
@@ -2432,5 +2507,73 @@ h2 {
   50% {
     box-shadow: 0 6px 32px rgba(102, 126, 234, 0.8);
   }
+}
+
+/* Structures tab */
+.structures-grid {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.structure-sprite-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: #f8f9fa;
+  min-width: 120px;
+  transition: border-color 0.2s;
+}
+
+.structure-sprite-card:hover {
+  border-color: #667eea;
+}
+
+.structure-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #555;
+  text-align: center;
+}
+
+.structure-preview {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  overflow: hidden;
+}
+
+.structure-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.btn-upload-sprite {
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.btn-upload-sprite:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 </style>

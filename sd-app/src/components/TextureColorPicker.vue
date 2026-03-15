@@ -6,7 +6,7 @@ const emit = defineEmits(['apply-texture', 'color-change', 'tiles-change', 'reso
 const props = defineProps({
   texturePath: {
     type: String,
-    default: '/enviroment/grass.jpg'
+    default: import.meta.env.BASE_URL + 'enviroment/grass.jpg'
   },
   disabled: {
     type: Boolean,

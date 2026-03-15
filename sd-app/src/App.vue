@@ -48,6 +48,7 @@ const constructSpriteUrl = ref(BASE_URL + 'templates/cubes1/contruct.png') // Co
 const tempBuildingSpriteUrl = ref(BASE_URL + 'templates/cubes1/0.png') // Temp building sprite URL
 const carSprite1Url = ref(BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png') // Car sprite 1 URL
 const carSprite2Url = ref(BASE_URL + 'templates/roads/sprites/car-down-top-left.png') // Car sprite 2 URL
+const personSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif') // Person sprite URL
 const viewMode = ref('editor') // 'editor' alebo 'gameplay'
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const showInsufficientResourcesModal = ref(false)
@@ -327,6 +328,14 @@ const handleCarSpriteChanged = ({ type, url }) => {
   console.log(`🚗 App.vue: Car sprite '${type}' updated`)
 }
 
+const handlePersonSpriteChanged = ({ url }) => {
+  personSpriteUrl.value = url
+  if (canvasRef.value && canvasRef.value.updatePersonSprite) {
+    canvasRef.value.updatePersonSprite(url)
+  }
+  console.log(`🚶 App.vue: Person sprite updated`)
+}
+
 const handleRoadPlaced = ({ path }) => {
   buildRoad(canvasRef.value, roadTiles.value, path)
 }
@@ -595,6 +604,7 @@ const handleLoadProject = (projectData) => {
   const loadedTempBuildingSpriteUrl = projectData.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png')
   const loadedCarSprite1Url = projectData.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png')
   const loadedCarSprite2Url = projectData.carSprite2Url || (BASE_URL + 'templates/roads/sprites/car-down-top-left.png')
+  const loadedPersonSpriteUrl = projectData.personSpriteUrl || (BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif')
   
   // Obnov farby prostredia
   environmentColors.value = loadedColors
@@ -658,6 +668,13 @@ const handleLoadProject = (projectData) => {
     canvasRef.value.updateCarSprite('car2', loadedCarSprite2Url)
   }
   console.log('🚗 App.vue: Car sprites načítané')
+  
+  // Obnov person sprite
+  personSpriteUrl.value = loadedPersonSpriteUrl
+  if (canvasRef.value && canvasRef.value.updatePersonSprite) {
+    canvasRef.value.updatePersonSprite(loadedPersonSpriteUrl)
+  }
+  console.log('🚶 App.vue: Person sprite načítaný')
   
   // Aplikuj background tiles na šachovnicu
   if (loadedTiles.length > 0 && canvasRef.value && canvasRef.value.setBackgroundTiles) {
@@ -1197,6 +1214,7 @@ const handleCanvasUpdated = () => {
         :tempBuildingSpriteUrl="tempBuildingSpriteUrl"
         :carSprite1Url="carSprite1Url"
         :carSprite2Url="carSprite2Url"
+        :personSpriteUrl="personSpriteUrl"
         :events="gameEvents"
         @load-project="handleLoadProject"
         @update:showNumbering="showNumbering = $event"
@@ -1286,6 +1304,7 @@ const handleCanvasUpdated = () => {
         :tempBuildingSpriteUrl="tempBuildingSpriteUrl"
         :carSprite1Url="carSprite1Url"
         :carSprite2Url="carSprite2Url"
+        :personSpriteUrl="personSpriteUrl"
         @delete="handleDelete" 
         @select="handleSelectImage"
         @place-on-board="handlePlaceOnBoard"
@@ -1304,6 +1323,7 @@ const handleCanvasUpdated = () => {
         @reorder-images="handleReorderImages"
         @structure-sprite-changed="handleStructureSpriteChanged"
         @car-sprite-changed="handleCarSpriteChanged"
+        @person-sprite-changed="handlePersonSpriteChanged"
       />
     </div>
     

@@ -1017,6 +1017,11 @@ const handleLoadProject = async (projectData) => {
       canvasRef.value.updateCarSprite('car2', loadedData.carSprite2Url)
     }
     
+    // Apply person sprite from JSON
+    if (loadedData.personSpriteUrl && canvasRef.value?.updatePersonSprite) {
+      canvasRef.value.updatePersonSprite(loadedData.personSpriteUrl)
+    }
+    
     // Načítaj images
     const loadedImages = loadedData.images || []
     

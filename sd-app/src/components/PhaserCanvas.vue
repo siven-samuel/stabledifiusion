@@ -1671,10 +1671,11 @@ class IsoScene extends Phaser.Scene {
    */
   async loadPersonGif() {
     try {
+      const gifUrl = this.customPersonSpriteUrl || (BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif')
       // Extrahujeme 3. postavu (index 2) pre front walk (row+, col+ smer)
       const front = await loadPersonGifFrames(
         this,
-        BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif',
+        gifUrl,
         5,  // 5 postáv vedľa seba v GIF
         2,  // index 2 = 3. postava
         'person_front'
@@ -1683,7 +1684,7 @@ class IsoScene extends Phaser.Scene {
       // Extrahujeme 2. postavu (index 1) pre back walk (col-, row- smer)
       const back = await loadPersonGifFrames(
         this,
-        BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif',
+        gifUrl,
         5,  // 5 postáv vedľa seba v GIF
         1,  // index 1 = 2. postava
         'person_back'
@@ -3909,6 +3910,27 @@ defineExpose({
       console.log(`🚗 Car sprite '${type}' texture updated`)
     })
     mainScene.load.start()
+  },
+  // Update person sprite (GIF)
+  updatePersonSprite: (url) => {
+    if (!mainScene) return
+    mainScene.customPersonSpriteUrl = url
+    // Remove old person textures to force reload
+    const texturesToRemove = ['person1', 'person_front_0', 'person_front_1', 'person_front_2', 'person_front_3', 'person_back_0', 'person_back_1', 'person_back_2', 'person_back_3']
+    texturesToRemove.forEach(key => {
+      if (mainScene.textures.exists(key)) {
+        mainScene.textures.remove(key)
+      }
+    })
+    // Remove old animations
+    if (mainScene.anims.exists('person_walk_front')) mainScene.anims.remove('person_walk_front')
+    if (mainScene.anims.exists('person_walk_back')) mainScene.anims.remove('person_walk_back')
+    // Reload person GIF with new URL
+    mainScene.loadPersonGif().then(() => {
+      console.log('🚶 Person sprite updated from custom URL')
+    }).catch(err => {
+      console.error('❌ Failed to update person sprite:', err)
+    })
   },
   // Zapne batch loading mode - preskakuje tiene a osoby
   startBatchLoading: () => {

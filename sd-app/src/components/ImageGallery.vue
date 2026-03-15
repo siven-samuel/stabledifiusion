@@ -49,6 +49,10 @@ const props = defineProps({
   carSprite2Url: {
     type: String,
     default: import.meta.env.BASE_URL + 'templates/roads/sprites/car-down-top-left.png'
+  },
+  personSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif'
   }
 })
 
@@ -70,7 +74,8 @@ const emit = defineEmits([
   'replace-image-url',
   'reorder-images',
   'structure-sprite-changed',
-  'car-sprite-changed'
+  'car-sprite-changed',
+  'person-sprite-changed'
 ])
 
 const selectedImage = ref(null)
@@ -87,6 +92,9 @@ const localTempBuildingSpriteUrl = ref(props.tempBuildingSpriteUrl)
 // Car sprites
 const localCarSprite1Url = ref(props.carSprite1Url)
 const localCarSprite2Url = ref(props.carSprite2Url)
+
+// Person sprite
+const localPersonSpriteUrl = ref(props.personSpriteUrl)
 
 const spawnPersonsEnabled = ref(props.personSpawnEnabled) // Či pridať osoby pri kliknutí na road tile
 const personsPerPlacement = ref(props.personSpawnCount) // Počet osôb na jedno umiestnenie road tile
@@ -367,6 +375,9 @@ watch(() => props.carSprite1Url, (newUrl) => {
 watch(() => props.carSprite2Url, (newUrl) => {
   if (newUrl) localCarSprite2Url.value = newUrl
 })
+watch(() => props.personSpriteUrl, (newUrl) => {
+  if (newUrl) localPersonSpriteUrl.value = newUrl
+})
 
 // Upload handler pre structure sprites
 const handleStructureSpriteUpload = (event, type) => {
@@ -382,6 +393,21 @@ const handleStructureSpriteUpload = (event, type) => {
     }
     emit('structure-sprite-changed', { type, url: dataUrl })
     console.log(`🏗️ Structure sprite '${type}' updated`)
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+// Upload handler pre person sprite
+const handlePersonSpriteUpload = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const dataUrl = e.target.result
+    localPersonSpriteUrl.value = dataUrl
+    emit('person-sprite-changed', { url: dataUrl })
+    console.log(`🚶 Person sprite updated`)
   }
   reader.readAsDataURL(file)
   event.target.value = ''
@@ -881,7 +907,8 @@ defineExpose({
   localConstructSpriteUrl,
   localTempBuildingSpriteUrl,
   localCarSprite1Url,
-  localCarSprite2Url
+  localCarSprite2Url,
+  localPersonSpriteUrl
 })
 </script>
 
@@ -961,6 +988,13 @@ defineExpose({
     >
       🏗️ Structures
     </button>
+    <button 
+      @click="activeGalleryTab = 'characters'" 
+      :class="{ active: activeGalleryTab === 'characters' }"
+      class="gallery-tab-btn"
+    >
+      🚶 Characters
+    </button>
   </div>
   
   <!-- Opacity control for roads -->
@@ -1015,33 +1049,6 @@ defineExpose({
         step="1"
         v-model.number="carsPerPlacement"
       />
-    </div>
-  </div>
-
-  <!-- Car sprite upload controls -->
-  <div v-if="activeGalleryTab === 'roads'" class="car-sprites-section">
-    <div class="car-sprites-label">Car Sprites</div>
-    <div class="car-sprites-grid">
-      <div class="structure-sprite-card">
-        <div class="structure-label">🚗 Car Sprite 1 (↗)</div>
-        <div class="structure-preview">
-          <img :src="localCarSprite1Url" alt="Car sprite 1" />
-        </div>
-        <label class="btn-upload-sprite">
-          Upload
-          <input type="file" accept="image/*" @change="handleCarSpriteUpload($event, 'car1')" hidden />
-        </label>
-      </div>
-      <div class="structure-sprite-card">
-        <div class="structure-label">🚗 Car Sprite 2 (↖)</div>
-        <div class="structure-preview">
-          <img :src="localCarSprite2Url" alt="Car sprite 2" />
-        </div>
-        <label class="btn-upload-sprite">
-          Upload
-          <input type="file" accept="image/*" @change="handleCarSpriteUpload($event, 'car2')" hidden />
-        </label>
-      </div>
     </div>
   </div>
   
@@ -1118,6 +1125,42 @@ defineExpose({
           <label class="btn-upload-sprite">
             Upload
             <input type="file" accept="image/*" @change="handleStructureSpriteUpload($event, 'tempBuilding')" hidden />
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <!-- Characters tab content -->
+    <template v-else-if="activeGalleryTab === 'characters'">
+      <div class="structures-grid">
+        <div class="structure-sprite-card">
+          <div class="structure-label">🚶 Person Sprite (GIF)</div>
+          <div class="structure-preview">
+            <img :src="localPersonSpriteUrl" alt="Person sprite" />
+          </div>
+          <label class="btn-upload-sprite">
+            Upload
+            <input type="file" accept="image/gif,image/*" @change="handlePersonSpriteUpload($event)" hidden />
+          </label>
+        </div>
+        <div class="structure-sprite-card">
+          <div class="structure-label">🚗 Car Sprite 1 (↗)</div>
+          <div class="structure-preview">
+            <img :src="localCarSprite1Url" alt="Car sprite 1" />
+          </div>
+          <label class="btn-upload-sprite">
+            Upload
+            <input type="file" accept="image/*" @change="handleCarSpriteUpload($event, 'car1')" hidden />
+          </label>
+        </div>
+        <div class="structure-sprite-card">
+          <div class="structure-label">🚗 Car Sprite 2 (↖)</div>
+          <div class="structure-preview">
+            <img :src="localCarSprite2Url" alt="Car sprite 2" />
+          </div>
+          <label class="btn-upload-sprite">
+            Upload
+            <input type="file" accept="image/*" @change="handleCarSpriteUpload($event, 'car2')" hidden />
           </label>
         </div>
       </div>

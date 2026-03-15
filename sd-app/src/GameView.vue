@@ -120,6 +120,7 @@ const eventQueue = ref([]) // Queue of events waiting to be shown
 
 // Astronaut sprite
 const astronautActive = ref(false)
+const advisorSpriteUrl = ref(BASE_URL + 'templates/all/advisor3.png')
 const astronautRef = ref(null)
 const overproductionCycles = ref({}) // Consecutive full-storage cycles per building: { 'row-col': count }
 
@@ -1020,6 +1021,11 @@ const handleLoadProject = async (projectData) => {
     // Apply person sprite from JSON
     if (loadedData.personSpriteUrl && canvasRef.value?.updatePersonSprite) {
       canvasRef.value.updatePersonSprite(loadedData.personSpriteUrl)
+    }
+    
+    // Apply advisor sprite from JSON
+    if (loadedData.advisorSpriteUrl) {
+      advisorSpriteUrl.value = loadedData.advisorSpriteUrl
     }
     
     // Načítaj images
@@ -2867,7 +2873,7 @@ onUnmounted(() => {
       ref="astronautRef"
       :active="astronautActive"
       bubbleText="Hello!"
-      :spriteUrl="BASE_URL + 'templates/all/advisor3.png'"
+      :spriteUrl="advisorSpriteUrl"
       :cols="3"
       :rows="2"
       :frameWidth="116"

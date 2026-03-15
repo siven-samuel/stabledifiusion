@@ -49,6 +49,7 @@ const tempBuildingSpriteUrl = ref(BASE_URL + 'templates/cubes1/0.png') // Temp b
 const carSprite1Url = ref(BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png') // Car sprite 1 URL
 const carSprite2Url = ref(BASE_URL + 'templates/roads/sprites/car-down-top-left.png') // Car sprite 2 URL
 const personSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif') // Person sprite URL
+const advisorSpriteUrl = ref(BASE_URL + 'templates/all/advisor3.png') // Advisor sprite URL
 const viewMode = ref('editor') // 'editor' alebo 'gameplay'
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const showInsufficientResourcesModal = ref(false)
@@ -336,6 +337,11 @@ const handlePersonSpriteChanged = ({ url }) => {
   console.log(`🚶 App.vue: Person sprite updated`)
 }
 
+const handleAdvisorSpriteChanged = ({ url }) => {
+  advisorSpriteUrl.value = url
+  console.log(`🧑‍🚀 App.vue: Advisor sprite updated`)
+}
+
 const handleRoadPlaced = ({ path }) => {
   buildRoad(canvasRef.value, roadTiles.value, path)
 }
@@ -605,6 +611,7 @@ const handleLoadProject = (projectData) => {
   const loadedCarSprite1Url = projectData.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png')
   const loadedCarSprite2Url = projectData.carSprite2Url || (BASE_URL + 'templates/roads/sprites/car-down-top-left.png')
   const loadedPersonSpriteUrl = projectData.personSpriteUrl || (BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif')
+  const loadedAdvisorSpriteUrl = projectData.advisorSpriteUrl || (BASE_URL + 'templates/all/advisor3.png')
   
   // Obnov farby prostredia
   environmentColors.value = loadedColors
@@ -675,6 +682,10 @@ const handleLoadProject = (projectData) => {
     canvasRef.value.updatePersonSprite(loadedPersonSpriteUrl)
   }
   console.log('🚶 App.vue: Person sprite načítaný')
+  
+  // Obnov advisor sprite
+  advisorSpriteUrl.value = loadedAdvisorSpriteUrl
+  console.log('🧑‍🚀 App.vue: Advisor sprite načítaný')
   
   // Aplikuj background tiles na šachovnicu
   if (loadedTiles.length > 0 && canvasRef.value && canvasRef.value.setBackgroundTiles) {
@@ -1215,6 +1226,7 @@ const handleCanvasUpdated = () => {
         :carSprite1Url="carSprite1Url"
         :carSprite2Url="carSprite2Url"
         :personSpriteUrl="personSpriteUrl"
+        :advisorSpriteUrl="advisorSpriteUrl"
         :events="gameEvents"
         @load-project="handleLoadProject"
         @update:showNumbering="showNumbering = $event"
@@ -1305,6 +1317,7 @@ const handleCanvasUpdated = () => {
         :carSprite1Url="carSprite1Url"
         :carSprite2Url="carSprite2Url"
         :personSpriteUrl="personSpriteUrl"
+        :advisorSpriteUrl="advisorSpriteUrl"
         @delete="handleDelete" 
         @select="handleSelectImage"
         @place-on-board="handlePlaceOnBoard"
@@ -1324,6 +1337,7 @@ const handleCanvasUpdated = () => {
         @structure-sprite-changed="handleStructureSpriteChanged"
         @car-sprite-changed="handleCarSpriteChanged"
         @person-sprite-changed="handlePersonSpriteChanged"
+        @advisor-sprite-changed="handleAdvisorSpriteChanged"
       />
     </div>
     

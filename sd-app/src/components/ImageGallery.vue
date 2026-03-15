@@ -53,6 +53,10 @@ const props = defineProps({
   personSpriteUrl: {
     type: String,
     default: import.meta.env.BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif'
+  },
+  advisorSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/all/advisor3.png'
   }
 })
 
@@ -75,7 +79,8 @@ const emit = defineEmits([
   'reorder-images',
   'structure-sprite-changed',
   'car-sprite-changed',
-  'person-sprite-changed'
+  'person-sprite-changed',
+  'advisor-sprite-changed'
 ])
 
 const selectedImage = ref(null)
@@ -95,6 +100,9 @@ const localCarSprite2Url = ref(props.carSprite2Url)
 
 // Person sprite
 const localPersonSpriteUrl = ref(props.personSpriteUrl)
+
+// Advisor sprite
+const localAdvisorSpriteUrl = ref(props.advisorSpriteUrl)
 
 const spawnPersonsEnabled = ref(props.personSpawnEnabled) // Či pridať osoby pri kliknutí na road tile
 const personsPerPlacement = ref(props.personSpawnCount) // Počet osôb na jedno umiestnenie road tile
@@ -378,6 +386,9 @@ watch(() => props.carSprite2Url, (newUrl) => {
 watch(() => props.personSpriteUrl, (newUrl) => {
   if (newUrl) localPersonSpriteUrl.value = newUrl
 })
+watch(() => props.advisorSpriteUrl, (newUrl) => {
+  if (newUrl) localAdvisorSpriteUrl.value = newUrl
+})
 
 // Upload handler pre structure sprites
 const handleStructureSpriteUpload = (event, type) => {
@@ -408,6 +419,21 @@ const handlePersonSpriteUpload = (event) => {
     localPersonSpriteUrl.value = dataUrl
     emit('person-sprite-changed', { url: dataUrl })
     console.log(`🚶 Person sprite updated`)
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+// Upload handler pre advisor sprite
+const handleAdvisorSpriteUpload = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const dataUrl = e.target.result
+    localAdvisorSpriteUrl.value = dataUrl
+    emit('advisor-sprite-changed', { url: dataUrl })
+    console.log(`🧑‍🚀 Advisor sprite updated`)
   }
   reader.readAsDataURL(file)
   event.target.value = ''
@@ -908,7 +934,8 @@ defineExpose({
   localTempBuildingSpriteUrl,
   localCarSprite1Url,
   localCarSprite2Url,
-  localPersonSpriteUrl
+  localPersonSpriteUrl,
+  localAdvisorSpriteUrl
 })
 </script>
 
@@ -1133,6 +1160,16 @@ defineExpose({
     <!-- Characters tab content -->
     <template v-else-if="activeGalleryTab === 'characters'">
       <div class="structures-grid">
+        <div class="structure-sprite-card">
+          <div class="structure-label">🧑‍🚀 Advisor Sprite</div>
+          <div class="structure-preview">
+            <img :src="localAdvisorSpriteUrl" alt="Advisor sprite" />
+          </div>
+          <label class="btn-upload-sprite">
+            Upload
+            <input type="file" accept="image/*" @change="handleAdvisorSpriteUpload($event)" hidden />
+          </label>
+        </div>
         <div class="structure-sprite-card">
           <div class="structure-label">🚶 Person Sprite (GIF)</div>
           <div class="structure-preview">

@@ -83,6 +83,10 @@ const props = defineProps({
     type: String,
     default: import.meta.env.BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif'
   },
+  advisorSpriteUrl: {
+    type: String,
+    default: import.meta.env.BASE_URL + 'templates/all/advisor3.png'
+  },
   allocatedResources: {
     type: Object,
     default: () => ({})
@@ -340,6 +344,7 @@ const saveProject = () => {
       carSprite1Url: props.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png'),
       carSprite2Url: props.carSprite2Url || (BASE_URL + 'templates/roads/sprites/car-down-top-left.png'),
       personSpriteUrl: props.personSpriteUrl || (BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif'),
+      advisorSpriteUrl: props.advisorSpriteUrl || (BASE_URL + 'templates/all/advisor3.png'),
       buildingProductionStates: Object.entries(props.buildingProductionStates || {}).reduce((acc, [key, state]) => {
         // Uloží len enabled flag a buildingData, nie interval (funkciu)
         acc[key] = {
@@ -519,6 +524,7 @@ const saveGameplayProject = async () => {
       carSprite1Url: props.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png'),
       carSprite2Url: props.carSprite2Url || (BASE_URL + 'templates/roads/sprites/car-down-top-left.png'),
       personSpriteUrl: props.personSpriteUrl || (BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif'),
+      advisorSpriteUrl: props.advisorSpriteUrl || (BASE_URL + 'templates/all/advisor3.png'),
       buildingProductionStates: Object.entries(props.buildingProductionStates || {}).reduce((acc, [key, state]) => {
         // Uloží len enabled flag a buildingData, nie interval (funkciu)
         acc[key] = {
@@ -658,6 +664,7 @@ const handleFileUpload = async (event) => {
       carSprite1Url: projectData.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png'),
       carSprite2Url: projectData.carSprite2Url || (BASE_URL + 'templates/roads/sprites/car-down-top-left.png'),
       personSpriteUrl: projectData.personSpriteUrl || (BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif'),
+      advisorSpriteUrl: projectData.advisorSpriteUrl || (BASE_URL + 'templates/all/advisor3.png'),
       buildingProductionStates: projectData.buildingProductionStates || {}
     })
 

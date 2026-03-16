@@ -2876,8 +2876,8 @@ onUnmounted(() => {
       :spriteUrl="advisorSpriteUrl"
       :cols="3"
       :rows="2"
-      :frameWidth="116"
-      :frameHeight="112"
+      :frameWidth="304"
+      :frameHeight="292"
       :frameSpeed="180"
       @bubble-clicked="handleResourceClicked"
     />

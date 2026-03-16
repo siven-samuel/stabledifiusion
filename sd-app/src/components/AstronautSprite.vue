@@ -74,6 +74,36 @@ const props = defineProps({
   }
 })
 
+// Convert large data URIs to blob URLs to avoid CSS rendering issues
+const resolvedSpriteUrl = ref(props.spriteUrl)
+let currentBlobUrl = null
+
+const updateSpriteUrl = (url) => {
+  if (currentBlobUrl) {
+    URL.revokeObjectURL(currentBlobUrl)
+    currentBlobUrl = null
+  }
+  if (url && url.startsWith('data:') && url.length > 50000) {
+    try {
+      const [header, base64] = url.split(',')
+      const mime = header.match(/:(.*?);/)[1]
+      const binary = atob(base64)
+      const array = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) {
+        array[i] = binary.charCodeAt(i)
+      }
+      currentBlobUrl = URL.createObjectURL(new Blob([array], { type: mime }))
+      resolvedSpriteUrl.value = currentBlobUrl
+    } catch {
+      resolvedSpriteUrl.value = url
+    }
+  } else {
+    resolvedSpriteUrl.value = url
+  }
+}
+updateSpriteUrl(props.spriteUrl)
+watch(() => props.spriteUrl, updateSpriteUrl)
+
 const visible = ref(false)
 const animating = ref(false)
 const showBubble = ref(false)
@@ -128,7 +158,7 @@ const spriteStyle = computed(() => {
   return {
     width: viewportWidth.value + 'px',
     height: viewportHeight.value + 'px',
-    backgroundImage: `url(${props.spriteUrl})`,
+    backgroundImage: `url("${resolvedSpriteUrl.value}")`,
     backgroundSize: `${props.frameWidth * props.cols}px ${props.frameHeight * props.rows}px`,
     backgroundPosition: `-${baseX - shakeOffsetX.value}px -${baseY - shakeOffsetY.value}px`,
     backgroundRepeat: 'no-repeat',
@@ -329,6 +359,10 @@ watch(() => props.active, (newVal) => {
 
 onBeforeUnmount(() => {
   stopAnimation()
+  if (currentBlobUrl) {
+    URL.revokeObjectURL(currentBlobUrl)
+    currentBlobUrl = null
+  }
 })
 
 defineExpose({ startAnimation, stopAnimation, hide, showMessage, PRIORITY })

@@ -5,4 +5,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   base: '/stabledifiusion/',
   plugins: [vue()],
+  define: {
+    __APP_VERSION__: JSON.stringify(new Date().toISOString()),
+  },
 })

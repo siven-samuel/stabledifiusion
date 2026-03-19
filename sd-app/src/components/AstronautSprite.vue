@@ -45,12 +45,12 @@ const props = defineProps({
   // Frame width in px (display size)
   frameWidth: {
     type: Number,
-    default: 120
+    default: 40
   },
   // Frame height in px (display size)
   frameHeight: {
     type: Number,
-    default: 120
+    default: 40
   },
   // Whether the animation is active
   active: {
@@ -372,7 +372,7 @@ defineExpose({ startAnimation, stopAnimation, hide, showMessage, PRIORITY })
 .astronaut-container {
   position: fixed;
   left: 16px;
-  bottom: 24px;
+  top: 140px;
   z-index: 1000;
   display: flex;
   align-items: flex-end;
@@ -389,9 +389,9 @@ defineExpose({ startAnimation, stopAnimation, hide, showMessage, PRIORITY })
 }
 
 .astronaut-sprite {
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 180, 255, 0.3), 0 0 40px rgba(0, 120, 255, 0.15);
-  border: 2px solid rgba(0, 180, 255, 0.5);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 180, 255, 0.3), 0 0 20px rgba(0, 120, 255, 0.15);
+  border: 1.5px solid rgba(0, 180, 255, 0.5);
   flex-shrink: 0;
 }
 

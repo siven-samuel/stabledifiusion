@@ -42,7 +42,7 @@ const selectedCell = ref({ row: -1, col: -1 })
 const canvasRef = ref(null)
 const showNumbering = ref(false)
 const showGallery = ref(true)
-const showGrid = ref(true)
+const showGrid = ref(false)
 const showPerson = ref(true)
 const deleteMode = ref(false)
 const environmentColors = ref({ hue: 0, saturation: 100, brightness: 100 })
@@ -278,6 +278,11 @@ watch(roadTiles, (newTiles, oldTiles) => {
     }
   }
 }, { deep: true })
+
+// Auto-toggle grid when building/road mode is active
+watch([selectedBuildingId, roadBuildingMode, roadDeleteMode], ([buildingId, roadMode, roadDelMode]) => {
+  showGrid.value = buildingId !== null || roadMode || roadDelMode
+})
 
 // ============================================================
 // Shared production helpers (eliminates code duplication)
@@ -956,6 +961,12 @@ const handleImagePlaced = (data) => {
     if (astronautRef.value) {
       astronautRef.value.showMessage(`Time to build ${name}!`, null, null, astronautRef.value.PRIORITY.BUILDING_PLACED)
     }
+    // Auto-deselect building after placement
+    selectedBuildingId.value = null
+    selectedImageId.value = null
+    selectedImageData.value = null
+    selectedBuildingDestinationTiles.value = []
+    selectedBuildingCanBuildOnlyInDestination.value = false
   }
   handleCanvasUpdated()
 }

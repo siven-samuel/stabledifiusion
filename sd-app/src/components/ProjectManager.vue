@@ -285,7 +285,19 @@ const saveProject = () => {
     // Konvertuj uniqueImages mapu na pole objektov
     const imageLibrary = []
     uniqueImages.forEach((id, url) => {
-      imageLibrary.push({ id, url })
+      // Nájdi buildingData z cellImages pre tento obrázok
+      let buildingData = null
+      if (props.canvasRef && typeof props.canvasRef.cellImages === 'function') {
+        const cellImagesData = props.canvasRef.cellImages()
+        const entry = Object.values(cellImagesData).find(img => img.url === url && img.buildingData)
+        if (entry) buildingData = entry.buildingData
+      }
+      // Fallback: nájdi v images galérii
+      if (!buildingData) {
+        const galleryImg = props.images.find(img => img.url === url && img.buildingData)
+        if (galleryImg) buildingData = galleryImg.buildingData
+      }
+      imageLibrary.push({ id, url, buildingData: buildingData || null })
     })
 
     // Priprav dáta pre export

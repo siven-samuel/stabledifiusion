@@ -116,6 +116,7 @@ export async function loadPlacedObjects(canvasRef, placedImages, roadTiles, imag
   let currentIndex = 0
   let successCount = 0
   
+  return new Promise((resolve) => {
   const loadBatch = async () => {
     const batchEnd = Math.min(currentIndex + BATCH_SIZE, totalObjects)
     
@@ -152,6 +153,20 @@ export async function loadPlacedObjects(canvasRef, placedImages, roadTiles, imag
         if (sourceImage && sourceImage.buildingData) {
           finalBuildingData = { ...sourceImage.buildingData }
           console.log(`🔧 ProjectLoader: Rekonštruované buildingData pre [${row}, ${col}] z imageLibrary (${finalBuildingData.buildingName || 'unknown'})`)
+        }
+      }
+
+      // Fallback: rekonštruuj buildingData z images galérie podľa libraryImageId
+      if (!finalBuildingData && libraryImageId && imageLibrary) {
+        // imageLibrary môže byť tiež projectData.images (viď loadProject)
+        // Skús nájsť v hlavnom images poli (galéria) cez libraryImageId
+        const galleryImages = imageLibrary._galleryImages
+        if (galleryImages && galleryImages.length > 0) {
+          const galleryImg = galleryImages.find(img => String(img.id) === String(libraryImageId))
+          if (galleryImg && galleryImg.buildingData) {
+            finalBuildingData = { ...galleryImg.buildingData }
+            console.log(`🔧 ProjectLoader: Rekonštruované buildingData pre [${row}, ${col}] z galérie (${finalBuildingData.buildingName || 'unknown'})`)
+          }
         }
       }
       
@@ -216,12 +231,14 @@ export async function loadPlacedObjects(canvasRef, placedImages, roadTiles, imag
         if (onProgress) {
           onProgress(100, 'Hotovo!')
         }
+        resolve()
       }, 100)
     }
   }
   
   // Spusti loading
   requestAnimationFrame(loadBatch)
+  })
 }
 
 /**
@@ -268,6 +285,8 @@ export async function loadProject(projectData, canvasRef, onProgress = null) {
     // 4. Načítaj umiestnené objekty
     const placedImages = projectData.placedImages || {}
     const imageLibrary = projectData.imageLibrary || projectData.images || []
+    // Attach gallery images for fallback buildingData reconstruction
+    imageLibrary._galleryImages = projectData.images || []
     
     if (Object.keys(placedImages).length > 0) {
       await loadPlacedObjects(canvasRef, placedImages, roadTiles, imageLibrary, (progress, status) => {

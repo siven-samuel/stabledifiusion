@@ -1,7 +1,44 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+const AUTOSAVE_DB = 'isometric-autosave-db'
+const AUTOSAVE_STORE = 'saves'
+const AUTOSAVE_KEY = 'isometric-game-autosave'
+
 const router = useRouter()
+const hasSavedGame = ref(false)
+
+const checkSavedGame = async () => {
+  try {
+    // Quick check via localStorage flag first
+    if (localStorage.getItem(AUTOSAVE_KEY + '-exists') === '1') {
+      hasSavedGame.value = true
+      return
+    }
+    // Fallback: check IndexedDB directly
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(AUTOSAVE_DB, 1)
+      request.onupgradeneeded = () => request.result.createObjectStore(AUTOSAVE_STORE)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const data = await new Promise((resolve, reject) => {
+      const tx = db.transaction(AUTOSAVE_STORE, 'readonly')
+      const req = tx.objectStore(AUTOSAVE_STORE).get(AUTOSAVE_KEY)
+      req.onsuccess = () => { db.close(); resolve(req.result || null) }
+      req.onerror = () => { db.close(); reject(req.error) }
+    })
+    hasSavedGame.value = !!(data && data.images && data.images.length > 0)
+  } catch {
+    hasSavedGame.value = false
+  }
+}
+
+onMounted(() => {
+  checkSavedGame()
+})
+
 const goEditor = () => {
   router.push('/editor')
 }
@@ -12,6 +49,10 @@ const goGameplay = () => {
 
 const goPlay = () => {
   router.push({ path: '/gameplay', query: { autoload: '1' } })
+}
+
+const goLoadLastGame = () => {
+  router.push({ path: '/gameplay', query: { restore: '1' } })
 }
 </script>
 
@@ -26,6 +67,12 @@ const goPlay = () => {
           <span class="btn-icon">▶️</span>
           <span class="btn-label">Play</span>
           <span class="btn-desc">Load demo project and start gameplay</span>
+        </button>
+
+        <button v-if="hasSavedGame" class="home-btn load-btn" @click="goLoadLastGame">
+          <span class="btn-icon">💾</span>
+          <span class="btn-label">Load Last Game</span>
+          <span class="btn-desc">Continue where you left off</span>
         </button>
 
         <button class="home-btn gameplay-btn" @click="goGameplay">
@@ -110,6 +157,9 @@ const goPlay = () => {
 
 .editor-btn { border-color: rgba(255, 152, 0, 0.4); }
 .editor-btn:hover { background: rgba(255, 152, 0, 0.2); border-color: rgba(255, 152, 0, 0.8); }
+
+.load-btn { border-color: rgba(233, 30, 99, 0.4); }
+.load-btn:hover { background: rgba(233, 30, 99, 0.2); border-color: rgba(233, 30, 99, 0.8); }
 
 .btn-icon {
   font-size: 3rem;

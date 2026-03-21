@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import PhaserCanvas from './components/PhaserCanvas.vue'
 import ProjectManager from './components/ProjectManager.vue'
 import GameClock from './components/GameClock.vue'
@@ -29,6 +29,7 @@ import {
 } from './utils/resourcePriorityService.js'
 
 const route = useRoute()
+const router = useRouter()
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -61,6 +62,11 @@ const resources = ref([])
 const workforce = ref([])
 const roadSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/pastroad.png')
 const roadOpacity = ref(100)
+const constructSpriteUrl = ref(BASE_URL + 'templates/cubes1/contruct.png')
+const tempBuildingSpriteUrl = ref(BASE_URL + 'templates/cubes1/0.png')
+const carSprite1Url = ref(BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png')
+const carSprite2Url = ref(BASE_URL + 'templates/roads/sprites/car-down-top-left.png')
+const personSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif')
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const gameTime = ref(0) // Herný čas v milisekundách
 const buildingProductionStates = ref({}) // Mapa stavov auto produkcie pre každú budovu: { 'row-col': { enabled: boolean, interval: number, buildingData: {...}, progress: 0, progressInterval: null } }
@@ -123,6 +129,42 @@ const astronautActive = ref(false)
 const advisorSpriteUrl = ref(BASE_URL + 'templates/all/advisor3.png')
 const astronautRef = ref(null)
 const overproductionCycles = ref({}) // Consecutive full-storage cycles per building: { 'row-col': count }
+
+const AUTOSAVE_KEY = 'isometric-game-autosave'
+const AUTOSAVE_DB = 'isometric-autosave-db'
+const AUTOSAVE_STORE = 'saves'
+
+// IndexedDB helpers (localStorage is too small for base64 images)
+const openAutosaveDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(AUTOSAVE_DB, 1)
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(AUTOSAVE_STORE)
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+const writeAutosave = async (data) => {
+  const db = await openAutosaveDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AUTOSAVE_STORE, 'readwrite')
+    tx.objectStore(AUTOSAVE_STORE).put(data, AUTOSAVE_KEY)
+    tx.oncomplete = () => { db.close(); resolve() }
+    tx.onerror = () => { db.close(); reject(tx.error) }
+  })
+}
+
+const readAutosave = async () => {
+  const db = await openAutosaveDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AUTOSAVE_STORE, 'readonly')
+    const req = tx.objectStore(AUTOSAVE_STORE).get(AUTOSAVE_KEY)
+    req.onsuccess = () => { db.close(); resolve(req.result || null) }
+    req.onerror = () => { db.close(); reject(req.error) }
+  })
+}
 
 // Filtrované budovy z galérie (zoradené podľa buildingOrder)
 const buildings = computed(() => {
@@ -504,6 +546,154 @@ const fullStopProduction = (row, col, reason = 'manual', deficitResources = null
 
   console.log(`⏹️ Production stopped at [${row}, ${col}], reason: ${reason}`)
 }
+
+// ============================================================
+// Auto-save to localStorage every 60 seconds
+// ============================================================
+const buildSaveData = () => {
+  const placedImages = {}
+  const uniqueImages = new Map()
+  let imageIdCounter = 1
+
+  if (canvasRef.value && typeof canvasRef.value.cellImages === 'function') {
+    const cellImagesData = canvasRef.value.cellImages()
+    Object.entries(cellImagesData).forEach(([key, imageData]) => {
+      if (imageData.isSecondary) return
+      if (imageData.isBackground) return
+      const [row, col] = key.split('-').map(Number)
+
+      if (imageData.isRoadTile && imageData.tileMetadata) {
+        placedImages[key] = {
+          row, col,
+          cellsX: imageData.cellsX || 1, cellsY: imageData.cellsY || 1,
+          isBackground: false, isRoadTile: true,
+          templateName: imageData.templateName || '',
+          tileMetadata: imageData.tileMetadata,
+          buildingData: imageData.buildingData || null
+        }
+        return
+      }
+
+      const url = imageData.url
+      let imageId
+      if (uniqueImages.has(url)) {
+        imageId = uniqueImages.get(url)
+      } else {
+        imageId = `img_${imageIdCounter++}`
+        uniqueImages.set(url, imageId)
+      }
+      placedImages[key] = {
+        row, col, imageId,
+        libraryImageId: imageData.libraryImageId || null,
+        cellsX: imageData.cellsX || 1, cellsY: imageData.cellsY || 1,
+        isBackground: false, isRoadTile: false,
+        templateName: imageData.templateName || '',
+        tileMetadata: imageData.tileMetadata || null,
+        buildingData: imageData.buildingData || null
+      }
+    })
+  }
+
+  const imageLibrary = []
+  uniqueImages.forEach((id, url) => {
+    let buildingData = null
+    if (canvasRef.value && typeof canvasRef.value.cellImages === 'function') {
+      const cellImagesData = canvasRef.value.cellImages()
+      const entry = Object.values(cellImagesData).find(img => img.url === url && img.buildingData)
+      if (entry) buildingData = entry.buildingData
+    }
+    if (!buildingData) {
+      const galleryImg = images.value.find(img => img.url === url && img.buildingData)
+      if (galleryImg) buildingData = galleryImg.buildingData
+    }
+    imageLibrary.push({ id, url, buildingData: buildingData || null })
+  })
+
+  // Get background tiles from canvas
+  const bgTiles = (canvasRef.value && typeof canvasRef.value.backgroundTiles === 'function')
+    ? canvasRef.value.backgroundTiles()
+    : []
+
+  return {
+    version: '1.8',
+    timestamp: new Date().toISOString(),
+    imageCount: images.value.length,
+    placedImageCount: Object.keys(placedImages).length,
+    uniqueImageCount: imageLibrary.length,
+    images: images.value.map(img => ({
+      id: img.id,
+      url: img.url,
+      prompt: img.prompt || '',
+      negativePrompt: img.negativePrompt || '',
+      cellsX: img.cellsX || 1,
+      cellsY: img.cellsY || 1,
+      view: img.view || '',
+      timestamp: img.timestamp || new Date().toISOString(),
+      buildingData: img.buildingData || null,
+      seed: img.seed || null
+    })),
+    imageLibrary,
+    placedImages,
+    backgroundTiles: bgTiles,
+    environmentColors: environmentColors.value,
+    textureSettings: {
+      tilesPerImage: textureSettings.value?.tilesPerImage || 1,
+      tileResolution: textureSettings.value?.tileResolution || 512,
+      customTexture: textureSettings.value?.customTexture || null
+    },
+    resources: (resources.value || []).map(r => {
+      const allocated = (r.workResource && allocatedResources.value[r.id]) ? allocatedResources.value[r.id] : 0
+      return allocated > 0 ? { ...r, amount: r.amount + allocated } : r
+    }),
+    workforce: workforce.value || [],
+    events: gameEvents.value || [],
+    gameTime: gameTime.value || 0,
+    roadSpriteUrl: roadSpriteUrl.value || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
+    roadOpacity: roadOpacity.value || 100,
+    constructSpriteUrl: constructSpriteUrl.value,
+    tempBuildingSpriteUrl: tempBuildingSpriteUrl.value,
+    carSprite1Url: carSprite1Url.value,
+    carSprite2Url: carSprite2Url.value,
+    personSpriteUrl: personSpriteUrl.value,
+    advisorSpriteUrl: advisorSpriteUrl.value || (BASE_URL + 'templates/all/advisor3.png'),
+    buildingProductionStates: Object.entries(buildingProductionStates.value || {}).reduce((acc, [key, state]) => {
+      acc[key] = {
+        enabled: state.enabled || false,
+        buildingData: state.buildingData || null
+      }
+      return acc
+    }, {})
+  }
+}
+
+const saveToLocalStorage = () => {
+  try {
+    if (images.value.length === 0 && Object.keys(canvasImagesMap.value).length === 0) return
+    const rawData = buildSaveData()
+    console.log('💾 Auto-save: Building save data...',
+      'images:', rawData.images?.length,
+      'placedImages:', Object.keys(rawData.placedImages || {}).length,
+      'imageLibrary:', rawData.imageLibrary?.length,
+      'customTexture:', rawData.textureSettings?.customTexture ? `${Math.round(rawData.textureSettings.customTexture.length / 1024)}KB` : 'null',
+      'backgroundTiles:', rawData.backgroundTiles?.length
+    )
+    const data = JSON.parse(JSON.stringify(rawData))
+    writeAutosave(data).then(() => {
+      localStorage.setItem(AUTOSAVE_KEY + '-exists', '1')
+      console.log('💾 Auto-save: Game saved to IndexedDB')
+      // Update URL to ?restore so refresh reloads saved game
+      if (route.query.restore !== '1') {
+        router.replace({ path: '/gameplay', query: { restore: '1' } })
+      }
+    }).catch(err => {
+      console.warn('⚠️ Auto-save write failed:', err.message)
+    })
+  } catch (error) {
+    console.warn('⚠️ Auto-save failed:', error.message)
+  }
+}
+
+
 
 // ============================================================
 // 3-second resource priority check
@@ -1014,24 +1204,39 @@ const handleLoadProject = async (projectData) => {
     gameTime.value = loadedData.gameTime || 0
     
     // Apply construct/temp building sprites from JSON (base64)
-    if (loadedData.constructSpriteUrl && canvasRef.value?.updateStructureSprite) {
-      canvasRef.value.updateStructureSprite('construct', loadedData.constructSpriteUrl)
+    if (loadedData.constructSpriteUrl) {
+      constructSpriteUrl.value = loadedData.constructSpriteUrl
+      if (canvasRef.value?.updateStructureSprite) {
+        canvasRef.value.updateStructureSprite('construct', loadedData.constructSpriteUrl)
+      }
     }
-    if (loadedData.tempBuildingSpriteUrl && canvasRef.value?.updateStructureSprite) {
-      canvasRef.value.updateStructureSprite('tempBuilding', loadedData.tempBuildingSpriteUrl)
+    if (loadedData.tempBuildingSpriteUrl) {
+      tempBuildingSpriteUrl.value = loadedData.tempBuildingSpriteUrl
+      if (canvasRef.value?.updateStructureSprite) {
+        canvasRef.value.updateStructureSprite('tempBuilding', loadedData.tempBuildingSpriteUrl)
+      }
     }
     
     // Apply car sprites from JSON (base64)
-    if (loadedData.carSprite1Url && canvasRef.value?.updateCarSprite) {
-      canvasRef.value.updateCarSprite('car1', loadedData.carSprite1Url)
+    if (loadedData.carSprite1Url) {
+      carSprite1Url.value = loadedData.carSprite1Url
+      if (canvasRef.value?.updateCarSprite) {
+        canvasRef.value.updateCarSprite('car1', loadedData.carSprite1Url)
+      }
     }
-    if (loadedData.carSprite2Url && canvasRef.value?.updateCarSprite) {
-      canvasRef.value.updateCarSprite('car2', loadedData.carSprite2Url)
+    if (loadedData.carSprite2Url) {
+      carSprite2Url.value = loadedData.carSprite2Url
+      if (canvasRef.value?.updateCarSprite) {
+        canvasRef.value.updateCarSprite('car2', loadedData.carSprite2Url)
+      }
     }
     
     // Apply person sprite from JSON
-    if (loadedData.personSpriteUrl && canvasRef.value?.updatePersonSprite) {
-      canvasRef.value.updatePersonSprite(loadedData.personSpriteUrl)
+    if (loadedData.personSpriteUrl) {
+      personSpriteUrl.value = loadedData.personSpriteUrl
+      if (canvasRef.value?.updatePersonSprite) {
+        canvasRef.value.updatePersonSprite(loadedData.personSpriteUrl)
+      }
     }
     
     // Apply advisor sprite from JSON
@@ -1128,6 +1333,9 @@ const handleLoadProject = async (projectData) => {
         
         // Trigger astronaut sprite animation
         astronautActive.value = true
+
+        // Auto-save after project is fully loaded
+        saveToLocalStorage()
       }, 500)
     }, 500)
     
@@ -2285,7 +2493,6 @@ const handleReorderBuildings = (newOrder) => {
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentClick)
   document.addEventListener('fullscreenchange', onFullscreenChange)
-
   // Auto-load project if navigated from Play button
   if (route.query.autoload === '1') {
     setTimeout(async () => {
@@ -2301,12 +2508,25 @@ onMounted(() => {
         isLoading.value = false
       }
     }, 500)
+  } else if (route.query.restore === '1') {
+    // Restore saved game from IndexedDB (Load Last Game)
+    readAutosave().then(projectData => {
+      if (projectData && projectData.images && projectData.images.length > 0) {
+        console.log('💾 Restoring saved game from IndexedDB...')
+        setTimeout(() => {
+          handleLoadProject(projectData)
+        }, 500)
+      }
+    }).catch(error => {
+      console.warn('⚠️ Failed to restore saved game:', error.message)
+    })
   }
 })
 
 onUnmounted(() => {
   document.removeEventListener('pointerdown', handleDocumentClick)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+
 })
 </script>
 
@@ -2370,6 +2590,11 @@ onUnmounted(() => {
       <button class="fullscreen-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'">
         <span v-if="!isFullscreen">⛶</span>
         <span v-else>⛶</span>
+      </button>
+
+      <!-- Save game button -->
+      <button class="save-game-btn" @click="saveToLocalStorage" title="Save game">
+        💾
       </button>
       </div>
 
@@ -3035,6 +3260,30 @@ top-warpper {
 
 .fullscreen-btn:hover {
   background: rgba(102, 126, 234, 1);
+  transform: scale(1.05);
+}
+
+.save-game-btn {
+  position: relative;
+  max-width: 40px;
+  height: 40px;
+  padding: 22px;
+  margin: 5px;
+  background: rgba(16, 185, 129, 0.9);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s;
+  z-index: 15;
+  font-size: 1.2rem;
+}
+
+.save-game-btn:hover {
+  background: rgba(16, 185, 129, 1);
   transform: scale(1.05);
 }
 

@@ -276,9 +276,9 @@ export async function loadProject(projectData, canvasRef, onProgress = null) {
     const textureSettings = projectData.textureSettings || { tilesPerImage: 1, tileResolution: 512, customTexture: null }
     await applyBackgroundTexture(canvasRef, textureSettings)
     
-    // 3. Aplikuj background tiles
+    // 3. Aplikuj background tiles (only if no customTexture, since it was already applied in step 2)
     const backgroundTiles = projectData.backgroundTiles || []
-    if (backgroundTiles.length > 0) {
+    if (backgroundTiles.length > 0 && !textureSettings.customTexture) {
       await applyBackgroundTiles(canvasRef, backgroundTiles)
     }
     

@@ -3113,9 +3113,8 @@ class IsoScene extends Phaser.Scene {
         let animationControl = null
         
         // === ANIMÁCIA STAVBY - len pri manuálnom umiestnení (nie pri načítavaní projektu) ===
-        // Preskočíme stavebné animáciu pre budovy s fly-away efektom - tie sa objavia plynule
         // V editor mode (alwaysShowEffects) sa budovy stavajú okamžite bez animácie
-        const shouldAnimate = !skipShadows && !this.batchLoading && !buildingData?.hasFlyAwayEffect && !props.alwaysShowEffects
+        const shouldAnimate = !skipShadows && !this.batchLoading && !props.alwaysShowEffects
         
         // Zistíme či existujú autá na mape (ak áno, animácia čaká na auto)
         const hasCars = this.carManager && this.carManager.cars && this.carManager.cars.length > 0
@@ -3217,10 +3216,9 @@ class IsoScene extends Phaser.Scene {
           console.log(`🔨 Construct sprites depth nastavený na ${finalBuildingDepth + 1} (budova má ${finalBuildingDepth})`)
         }
 
-        // Fly-away efekt je samostatná logika - spúšťa sa automaticky len pri budovách s hasFlyAwayEffect
-        // Budovy s fly-away sa objavia plynule BEZ stavebnej animácie a spustia fly-away hneď
-        if (buildingData?.hasFlyAwayEffect) {
-          // Spustíme fly-away okamžite (bez čakania, pretože nebola stavebná animácia)
+        // Fly-away efekt - pri batch loading (načítanie projektu) sa spúšťa okamžite
+        // Pri manuálnom umiestnení sa spúšťa až po dokončení stavebnej animácie (v onAnimationComplete)
+        if (!shouldAnimate && buildingData?.hasFlyAwayEffect) {
           this.startFlyAwayEffect(key, buildingSprite)
         }
 

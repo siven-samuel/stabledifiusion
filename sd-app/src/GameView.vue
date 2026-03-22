@@ -1411,6 +1411,8 @@ const startAutoProductionForBuilding = (row, col) => {
   const matchingImage = images.value.find(img => img.id === mapData.imageId)
   const bd = mapData.buildingData || matchingImage?.buildingData
   if (!bd?.isBuilding) return
+  // Port budovy sa nespúšťajú automaticky - len manuálne z modalu
+  if (bd.isPort) return
 
   const buildingDataForProduction = {
     row, col,
@@ -1524,7 +1526,7 @@ const handleCanvasUpdated = () => {
         
         // Ak budova je building a ešte nemá zapnutú auto produkciu (produkcia môže byť aj prázdna)
         // Preskočíme budovy ktoré sú ešte v stavebnej animácii
-        // Preskočíme port budovy - tie sa spúšťajú manuálne
+        // Preskočíme port budovy - tie sa spúšťajú manuálne z modalu
         if (bd?.isBuilding && 
             !bd.isPort &&
             !buildingProductionStates.value[key]?.enabled &&
@@ -2765,8 +2767,8 @@ onUnmounted(() => {
             </div>
           </div>
           
-          <!-- PORT sekcie -->
-          <template v-if="clickedBuilding.isPort">
+          <!-- PORT sekcie - zobrazí sa až po dokončení stavby -->
+          <template v-if="clickedBuilding.isPort && !currentBuildingIsAnimating">
             <!-- Capacity Progress Bar -->
             <div class="bdp-section">
               <h4>📊 Payload Capacity</h4>

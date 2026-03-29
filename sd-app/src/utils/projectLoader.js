@@ -317,7 +317,8 @@ export async function loadProject(projectData, canvasRef, onProgress = null) {
       advisorSpriteUrl: projectData.advisorSpriteUrl || null,
       gameTime: projectData.gameTime || 0,
       buildingProductionStates: projectData.buildingProductionStates || {},
-      events: projectData.events || []
+      events: projectData.events || [],
+      quests: projectData.quests || []
     }
     
   } catch (error) {

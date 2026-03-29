@@ -42,6 +42,7 @@ const carSpawnCount = ref(0)
 const resources = ref([]) // Resources list
 const workforce = ref([]) // Workforce list
 const gameEvents = ref([]) // Zoznam herných eventov
+const gameQuests = ref([]) // Zoznam questov
 const roadSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/pastroad.png') // Aktuálny road sprite URL
 const roadOpacity = ref(100) // Aktuálna opacity pre road tiles
 const constructSpriteUrl = ref(BASE_URL + 'templates/cubes1/contruct.png') // Construction sprite URL
@@ -647,6 +648,7 @@ const handleLoadProject = (projectData) => {
   resources.value = loadedResources
   workforce.value = loadedWorkforce
   gameEvents.value = projectData.events || []
+  gameQuests.value = projectData.quests || []
   console.log('📊 App.vue: Resources a workforce načítané:', loadedResources.length, loadedWorkforce.length)
   
   // Obnov road sprite URL a opacity
@@ -1228,12 +1230,14 @@ const handleCanvasUpdated = () => {
         :personSpriteUrl="personSpriteUrl"
         :advisorSpriteUrl="advisorSpriteUrl"
         :events="gameEvents"
+        :quests="gameQuests"
         @load-project="handleLoadProject"
         @update:showNumbering="showNumbering = $event"
         @update:showGallery="showGallery = $event"
         @update:showGrid="showGrid = $event"
         @update-resources="handleUpdateResources"
         @update-events="gameEvents = $event"
+        @update-quests="gameQuests = $event"
         @mode-changed="handleModeChanged"
         @effect-changed="handleEffectChanged"
       />

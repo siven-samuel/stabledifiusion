@@ -102,10 +102,14 @@ const props = defineProps({
   events: {
     type: Array,
     default: () => []
+  },
+  quests: {
+    type: Array,
+    default: () => []
   }
 })
 
-const emit = defineEmits(['load-project', 'update:showNumbering', 'update:showGallery', 'update:showGrid', 'update-resources', 'mode-changed', 'update-events', 'effect-changed'])
+const emit = defineEmits(['load-project', 'update:showNumbering', 'update:showGallery', 'update:showGrid', 'update-resources', 'mode-changed', 'update-events', 'update-quests', 'effect-changed'])
 
 const fileInput = ref(null)
 const showResourceModal = ref(false)
@@ -147,6 +151,10 @@ const closeEventEmitter = () => {
 
 const handleEventsUpdate = (updatedEvents) => {
   emit('update-events', updatedEvents)
+}
+
+const handleQuestsUpdate = (updatedQuests) => {
+  emit('update-quests', updatedQuests)
 }
 
 const handleResourceUpdate = (data) => {
@@ -348,6 +356,7 @@ const saveProject = () => {
       }),
       workforce: props.workforce || [],
       events: props.events || [],
+      quests: props.quests || [],
       gameTime: props.gameTime || 0,
       roadSpriteUrl: props.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
@@ -528,6 +537,7 @@ const saveGameplayProject = async () => {
       }),
       workforce: props.workforce || [],
       events: props.events || [],
+      quests: props.quests || [],
       gameTime: props.gameTime || 0,
       roadSpriteUrl: props.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
@@ -668,6 +678,7 @@ const handleFileUpload = async (event) => {
       resources: projectData.resources || [],
       workforce: projectData.workforce || [],
       events: projectData.events || [],
+      quests: projectData.quests || [],
       gameTime: projectData.gameTime || 0,
       roadSpriteUrl: projectData.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: projectData.roadOpacity || 100,
@@ -835,10 +846,12 @@ const clearProject = () => {
     >
       <EventEmitter
         :events="events"
+        :quests="quests"
         :resources="resources"
         :workforce="workforce"
         :images="images"
         @update-events="handleEventsUpdate"
+        @update-quests="handleQuestsUpdate"
       />
     </Modal>
   </div>

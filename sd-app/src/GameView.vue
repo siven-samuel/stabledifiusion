@@ -97,6 +97,7 @@ const insufficientResourcesData = ref({
 })
 const ignoreResourceCheck = ref(false) // Checkbox pre ignorovanie kontroly resources
 const gameEvents = ref([]) // Zoznam herných eventov
+const gameQuests = ref([]) // Zoznam questov
 const manuallyStoppedBuildings = ref({}) // Budovy manuálne zastavené používateľom: { 'row-col': true }
 const consumptionMap = ref({}) // Mapa spotreby surovín pre priority service: { resourceId: [{ key, row, col, consumption, buildingData }] }
 
@@ -129,6 +130,13 @@ const astronautActive = ref(false)
 const advisorSpriteUrl = ref(BASE_URL + 'templates/all/advisor3.png')
 const astronautRef = ref(null)
 const overproductionCycles = ref({}) // Consecutive full-storage cycles per building: { 'row-col': count }
+
+// Quest / Mission Objectives system
+const showQuestModal = ref(false)
+const completedQuestIds = ref(new Set()) // IDs of completed quests
+const questJustCompleted = ref(false) // Flash notification on button
+const questCompletedName = ref('') // Name of quest that was just completed
+const showQuestCompletedBanner = ref(false) // Show completed banner inside modal
 
 const AUTOSAVE_KEY = 'isometric-game-autosave'
 const AUTOSAVE_DB = 'isometric-autosave-db'
@@ -260,6 +268,111 @@ const producedResources = computed(() => {
 const storedResources = computed(() => {
   return calculateStoredResources(canvasImagesMap.value, images.value, buildingProductionStates.value, animatingBuildings.value)
 })
+
+// ============================================================
+// Quest / Mission Objectives system
+// ============================================================
+
+// Active quest = first quest that is not yet completed
+const activeQuest = computed(() => {
+  if (!gameQuests.value || gameQuests.value.length === 0) return null
+  return gameQuests.value.find(q => !completedQuestIds.value.has(q.id)) || null
+})
+
+// Active quest index (1-based for display)
+const activeQuestIndex = computed(() => {
+  if (!activeQuest.value || !gameQuests.value) return 0
+  const idx = gameQuests.value.findIndex(q => q.id === activeQuest.value.id)
+  return idx + 1
+})
+
+// Get building image URL for a quest by buildingId
+const getQuestBuildingImage = (buildingId) => {
+  if (!buildingId) return ''
+  const img = images.value.find(i => i.id === buildingId || i.buildingData?.buildingId === buildingId)
+  return img?.url || ''
+}
+
+// Count how many buildings with a given buildingId (from image library) are fully built on canvas
+// Excludes buildings still under construction (in animatingBuildings)
+const countPlacedBuildings = (buildingId) => {
+  if (!buildingId) return 0
+  let count = 0
+  Object.entries(canvasImagesMap.value).forEach(([key, mapData]) => {
+    // Skip buildings still under construction
+    if (animatingBuildings.value.has(key)) return
+
+    // Match by imageId -> library image that has this buildingId
+    const img = mapData.imageId ? images.value.find(i => i.id === mapData.imageId) : null
+    if (img && (img.id === buildingId || img.buildingData?.buildingId === buildingId)) {
+      count++
+      return
+    }
+    // Fallback: match by buildingData on canvas
+    const bd = mapData.buildingData
+    if (bd && bd.buildingId === buildingId) {
+      count++
+    }
+  })
+  return count
+}
+
+// Check quest completion for active quest
+const checkQuestCompletion = () => {
+  const quest = activeQuest.value
+  if (!quest) return
+
+  let completed = false
+
+  if (quest.buildingId) {
+    // Building quest - check placed buildings count
+    const placed = countPlacedBuildings(quest.buildingId)
+    completed = placed >= (quest.buildingCount || 1)
+  } else if (quest.resources && quest.resources.length > 0) {
+    // Resource quest - check all resources meet or exceed required amounts
+    completed = quest.resources.every(qr => {
+      const res = resources.value.find(r => r.id === qr.resourceId)
+      if (!res) return false
+      const allocated = allocatedResources.value[res.id] || 0
+      return (res.amount + allocated) >= qr.amount
+    })
+  }
+
+  if (completed) {
+    completedQuestIds.value.add(quest.id)
+    questCompletedName.value = quest.name
+    questJustCompleted.value = true
+    showQuestCompletedBanner.value = true
+    // Auto-hide the button notification after 10 seconds
+    setTimeout(() => {
+      questJustCompleted.value = false
+    }, 10000)
+  }
+}
+
+// Get quest progress info for display
+const getQuestProgress = (quest) => {
+  if (!quest) return { current: 0, target: 0, percent: 0 }
+  if (quest.buildingId) {
+    const placed = countPlacedBuildings(quest.buildingId)
+    const target = quest.buildingCount || 1
+    return { current: Math.min(placed, target), target, percent: Math.min(100, (placed / target) * 100) }
+  }
+  if (quest.resources && quest.resources.length > 0) {
+    // Multi-resource: average progress
+    let totalPercent = 0
+    const details = quest.resources.map(qr => {
+      const res = resources.value.find(r => r.id === qr.resourceId)
+      const allocated = allocatedResources.value[res?.id] || 0
+      const current = res ? Math.min(qr.amount, (res.amount || 0) + allocated) : 0
+      const percent = (current / qr.amount) * 100
+      totalPercent += percent
+      return { current, target: qr.amount, percent }
+    })
+    return { current: 0, target: 0, percent: totalPercent / details.length, details }
+  }
+  return { current: 0, target: 0, percent: 0 }
+}
 
 // Funkcia na kontrolu dostupnosti resources pre budovu - používa resourceCalculator service
 const checkBuildingResources = (buildingData) => {
@@ -647,6 +760,8 @@ const buildSaveData = () => {
     }),
     workforce: workforce.value || [],
     events: gameEvents.value || [],
+    quests: gameQuests.value || [],
+    completedQuestIds: [...completedQuestIds.value],
     gameTime: gameTime.value || 0,
     roadSpriteUrl: roadSpriteUrl.value || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
     roadOpacity: roadOpacity.value || 100,
@@ -790,6 +905,19 @@ watch(resources, (newResources) => {
 // ============================================================
 // Game Event Trigger System
 // ============================================================
+
+// ============================================================
+// Quest completion checking
+// ============================================================
+// Check quest completion when resources change
+watch(resources, () => {
+  checkQuestCompletion()
+}, { deep: true })
+
+// Check quest completion when canvas buildings change
+watch(canvasImagesMap, () => {
+  checkQuestCompletion()
+}, { deep: true })
 
 const MS_PER_GAME_DAY = 60000
 const currentGameDay = computed(() => Math.floor(gameTime.value / MS_PER_GAME_DAY) + 1)
@@ -1200,6 +1328,12 @@ const handleLoadProject = async (projectData) => {
     resources.value = loadedData.resources
     workforce.value = loadedData.workforce
     gameEvents.value = loadedData.events || []
+    gameQuests.value = loadedData.quests || []
+    if (loadedData.completedQuestIds) {
+      completedQuestIds.value = new Set(loadedData.completedQuestIds)
+    } else {
+      completedQuestIds.value = new Set()
+    }
     roadSpriteUrl.value = loadedData.roadSpriteUrl
     roadOpacity.value = loadedData.roadOpacity
     gameTime.value = loadedData.gameTime || 0
@@ -1711,6 +1845,9 @@ const handleBuildingConstructionComplete = ({ row, col }) => {
   const builtBuildingData = canvasRef.value?.cellImages?.()[key]
   const builtBuildingId = builtBuildingData?.buildingData?.id || null
   checkBuildingEvents('built', builtBuildingId)
+  
+  // Check quest completion (building is now fully built)
+  checkQuestCompletion()
   
   // Show astronaut message for completed building
   const buildingName = builtBuildingData?.buildingData?.buildingName || 'Building'
@@ -2615,6 +2752,89 @@ onUnmounted(() => {
       @update:gameTime="gameTime = $event"
     />
 
+    <!-- Mission Objectives button - next to game clock -->
+    <button 
+      v-if="gameQuests.length > 0"
+      class="mission-btn" 
+      :class="{ 'quest-notify': questJustCompleted }"
+      @click="showQuestModal = true; showQuestCompletedBanner = false"
+      title="Mission Objectives"
+    >
+      📋
+      <span v-if="questJustCompleted" class="mission-badge">!</span>
+    </button>
+
+    <!-- Quest / Mission Objectives Modal -->
+    <Modal v-if="showQuestModal" title="Mission Objectives" width="500px" @close="showQuestModal = false">
+      <div class="quest-modal-body">
+        <!-- Completed banner -->
+        <div v-if="showQuestCompletedBanner && questCompletedName" class="quest-completed-banner">
+          <span class="quest-completed-icon">🏆</span>
+          <span>Quest completed: <strong>{{ questCompletedName }}</strong></span>
+        </div>
+
+        <!-- All quests done -->
+        <div v-if="!activeQuest" class="quest-all-done">
+          <span class="quest-done-icon">🎉</span>
+          <p>All mission objectives completed!</p>
+        </div>
+
+        <!-- Active quest -->
+        <div v-else class="quest-active">
+          <div class="quest-header">
+            <span class="quest-number">Objective {{ activeQuestIndex }} / {{ gameQuests.length }}</span>
+          </div>
+          <h3 class="quest-name">{{ activeQuest.name }}</h3>
+          <p v-if="activeQuest.description" class="quest-description">{{ activeQuest.description }}</p>
+
+          <!-- Building quest -->
+          <div v-if="activeQuest.buildingId" class="quest-objective">
+            <div class="quest-objective-row">
+              <img 
+                v-if="getQuestBuildingImage(activeQuest.buildingId)" 
+                :src="getQuestBuildingImage(activeQuest.buildingId)" 
+                class="quest-building-img" 
+              />
+              <div class="quest-objective-text">
+                <span>Build {{ activeQuest.buildingCount || 1 }}x <strong>{{ activeQuest.buildingName }}</strong></span>
+                <div class="quest-progress-bar">
+                  <div class="quest-progress-fill" :style="{ width: getQuestProgress(activeQuest).percent + '%' }"></div>
+                </div>
+                <span class="quest-progress-text">{{ getQuestProgress(activeQuest).current }} / {{ getQuestProgress(activeQuest).target }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resource quest -->
+          <div v-else-if="activeQuest.resources && activeQuest.resources.length > 0" class="quest-objective">
+            <div v-for="qr in activeQuest.resources" :key="qr.resourceId" class="quest-objective-row">
+              <img 
+                v-if="getResourceIcon(qr.resourceId)" 
+                :src="getResourceIcon(qr.resourceId)" 
+                class="quest-res-icon" 
+              />
+              <div class="quest-objective-text">
+                <span>Earn {{ qr.amount }} <strong>{{ qr.resourceName }}</strong></span>
+                <div class="quest-progress-bar">
+                  <div class="quest-progress-fill" :style="{ width: Math.min(100, ((resources.find(r => r.id === qr.resourceId)?.amount || 0) + (allocatedResources[qr.resourceId] || 0)) / qr.amount * 100) + '%' }"></div>
+                </div>
+                <span class="quest-progress-text">{{ Math.min(qr.amount, (resources.find(r => r.id === qr.resourceId)?.amount || 0) + (allocatedResources[qr.resourceId] || 0)) }} / {{ qr.amount }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed quests list -->
+        <div v-if="completedQuestIds.size > 0" class="quest-completed-list">
+          <h4>Completed</h4>
+          <div v-for="quest in gameQuests.filter(q => completedQuestIds.has(q.id))" :key="quest.id" class="quest-completed-item">
+            <span class="quest-check">✅</span>
+            <span>{{ quest.name }}</span>
+          </div>
+        </div>
+      </div>
+    </Modal>
+
     <!-- Hamburger dropdown menu -->
     <div class="hamburger-menu" v-if="hamburgerOpen" @click.self="hamburgerOpen = false">
       <div class="hamburger-menu-content">
@@ -2661,12 +2881,14 @@ onUnmounted(() => {
             :buildingProductionStates="buildingProductionStates"
             :gameTime="gameTime"
             :events="gameEvents"
+            :quests="gameQuests"
             @load-project="handleLoadProject"
             @update:showNumbering="showNumbering = $event"
             @update:showGallery="showGallery = $event"
             @update:showGrid="showGrid = $event"
             @update-resources="handleUpdateResources"
             @update-events="gameEvents = $event"
+            @update-quests="gameQuests = $event"
             @effect-changed="handleEffectChanged"
           />
         </div>
@@ -4590,4 +4812,219 @@ top-warpper {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
+
+/* ===== Mission Objectives Button & Modal ===== */
+.mission-btn {
+  position: fixed;
+  top: 0;
+  right: 250px;
+  height: 52px;
+  width: 44px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: none;
+  border-bottom: 2px solid #0f3460;
+  border-left: 1px solid rgba(255,255,255,0.08);
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.mission-btn:hover {
+  background: linear-gradient(135deg, #2a2a4e 0%, #1e2d50 100%);
+}
+
+.mission-btn.quest-notify {
+  animation: quest-pulse 1s ease-in-out infinite;
+}
+
+@keyframes quest-pulse {
+  0%, 100% { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+  50% { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); }
+}
+
+.mission-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: badge-bounce 0.6s ease;
+}
+
+@keyframes badge-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* Quest Modal Body */
+.quest-modal-body {
+  padding: 0.5rem 0;
+}
+
+.quest-completed-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #065f46;
+}
+
+.quest-completed-icon {
+  font-size: 1.3rem;
+}
+
+.quest-all-done {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.quest-done-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.quest-all-done p {
+  font-size: 1.1rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.quest-active {
+  padding: 0.5rem 0;
+}
+
+.quest-header {
+  margin-bottom: 0.25rem;
+}
+
+.quest-number {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.quest-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.quest-description {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.quest-objective {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quest-objective-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.quest-building-img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.quest-res-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.quest-objective-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.quest-progress-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.quest-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.quest-progress-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.quest-completed-list {
+  margin-top: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.75rem;
+}
+
+.quest-completed-list h4 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #9ca3af;
+  margin: 0 0 0.5rem;
+}
+
+.quest-completed-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.quest-check {
+  font-size: 0.9rem;
+}
+/* ===== End Mission Objectives ===== */
 </style>

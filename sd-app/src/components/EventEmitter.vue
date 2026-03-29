@@ -6,6 +6,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  quests: {
+    type: Array,
+    default: () => []
+  },
   resources: {
     type: Array,
     default: () => []
@@ -20,7 +24,10 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update-events'])
+const emit = defineEmits(['update-events', 'update-quests'])
+
+// Tabs
+const activeTab = ref('events')
 
 // Formulár pre nový event
 const newEventName = ref('')
@@ -429,10 +436,192 @@ const getTriggerDescription = (event) => {
       return ''
   }
 }
+
+// ===== Quests =====
+const newQuestName = ref('')
+const newQuestDescription = ref('')
+const newQuestBuildingId = ref('')
+const newQuestBuildingCount = ref(1)
+const newQuestResources = ref([])  // [{ resourceId, amount }]
+const newQuestResResourceId = ref('')
+const newQuestResAmount = ref(1)
+
+const editingQuestIndex = ref(-1)
+const editingQuest = ref(null)
+const editQuestResResourceId = ref('')
+const editQuestResAmount = ref(1)
+
+const addQuestResource = () => {
+  if (!newQuestResResourceId.value) return
+  // Prevent duplicates
+  if (newQuestResources.value.some(r => r.resourceId === newQuestResResourceId.value)) return
+  const res = allResources.value.find(r => r.id === newQuestResResourceId.value)
+  newQuestResources.value.push({
+    resourceId: newQuestResResourceId.value,
+    resourceName: res?.name || '',
+    amount: newQuestResAmount.value
+  })
+  newQuestResResourceId.value = ''
+  newQuestResAmount.value = 1
+}
+
+const removeQuestResource = (index) => {
+  newQuestResources.value.splice(index, 1)
+}
+
+const addEditQuestResource = () => {
+  if (!editingQuest.value || !editQuestResResourceId.value) return
+  if (editingQuest.value.resources.some(r => r.resourceId === editQuestResResourceId.value)) return
+  const res = allResources.value.find(r => r.id === editQuestResResourceId.value)
+  editingQuest.value.resources.push({
+    resourceId: editQuestResResourceId.value,
+    resourceName: res?.name || '',
+    amount: editQuestResAmount.value
+  })
+  editQuestResResourceId.value = ''
+  editQuestResAmount.value = 1
+}
+
+const removeEditQuestResource = (index) => {
+  if (editingQuest.value) editingQuest.value.resources.splice(index, 1)
+}
+
+const addQuest = () => {
+  if (!newQuestName.value.trim()) return
+  const building = allBuildings.value.find(b => b.id === newQuestBuildingId.value)
+  const quest = {
+    id: Date.now(),
+    name: newQuestName.value.trim(),
+    description: newQuestDescription.value.trim(),
+    buildingId: newQuestBuildingId.value || null,
+    buildingName: building?.buildingData?.buildingName || null,
+    buildingCount: newQuestBuildingId.value ? newQuestBuildingCount.value : null,
+    resources: [...newQuestResources.value]
+  }
+  const updated = [...props.quests, quest]
+  emit('update-quests', updated)
+  newQuestName.value = ''
+  newQuestDescription.value = ''
+  newQuestBuildingId.value = ''
+  newQuestBuildingCount.value = 1
+  newQuestResources.value = []
+}
+
+const removeQuest = (index) => {
+  const updated = props.quests.filter((_, i) => i !== index)
+  emit('update-quests', updated)
+}
+
+const startEditQuest = (index) => {
+  editingQuestIndex.value = index
+  editingQuest.value = JSON.parse(JSON.stringify(props.quests[index]))
+  if (!editingQuest.value.resources) editingQuest.value.resources = []
+}
+
+const saveEditQuest = () => {
+  if (editingQuestIndex.value < 0 || !editingQuest.value || !editingQuest.value.name?.trim()) return
+  const building = allBuildings.value.find(b => b.id === editingQuest.value.buildingId)
+  editingQuest.value.buildingName = building?.buildingData?.buildingName || null
+  if (!editingQuest.value.buildingId) {
+    editingQuest.value.buildingCount = null
+    editingQuest.value.buildingName = null
+  }
+  const updated = [...props.quests]
+  updated[editingQuestIndex.value] = editingQuest.value
+  emit('update-quests', updated)
+  editingQuestIndex.value = -1
+  editingQuest.value = null
+}
+
+const cancelEditQuest = () => {
+  editingQuestIndex.value = -1
+  editingQuest.value = null
+}
+
+// Quest drag & drop reordering
+const questDraggedIndex = ref(null)
+const questDragOverIndex = ref(null)
+
+const onQuestDragStart = (event, index) => {
+  questDraggedIndex.value = index
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', String(index))
+  setTimeout(() => {
+    const el = event.target.closest('.event-item')
+    if (el) el.classList.add('dragging')
+  }, 0)
+}
+
+const onQuestDragOver = (event, index) => {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  questDragOverIndex.value = index
+}
+
+const onQuestDragLeave = () => {
+  questDragOverIndex.value = null
+}
+
+const onQuestDrop = (event, targetIndex) => {
+  event.preventDefault()
+  if (questDraggedIndex.value === null || questDraggedIndex.value === targetIndex) {
+    resetQuestDrag()
+    return
+  }
+  const list = [...props.quests]
+  const [moved] = list.splice(questDraggedIndex.value, 1)
+  list.splice(targetIndex, 0, moved)
+  emit('update-quests', list)
+  resetQuestDrag()
+}
+
+const onQuestDragEnd = (event) => {
+  const el = event.target.closest('.event-item')
+  if (el) el.classList.remove('dragging')
+  resetQuestDrag()
+}
+
+const resetQuestDrag = () => {
+  questDraggedIndex.value = null
+  questDragOverIndex.value = null
+}
+
+const getQuestSummary = (quest) => {
+  const parts = []
+  if (quest.buildingId && quest.buildingCount) {
+    parts.push(`🏗️ ${quest.buildingName || 'Building'} ×${quest.buildingCount}`)
+  }
+  if (quest.resources && quest.resources.length > 0) {
+    for (const r of quest.resources) {
+      parts.push(`📦 ${r.resourceName || r.resourceId} ×${r.amount}`)
+    }
+  }
+  return parts.join('  •  ')
+}
 </script>
 
 <template>
   <div class="event-emitter">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button 
+        class="tab-btn" 
+        :class="{ active: activeTab === 'events' }" 
+        @click="activeTab = 'events'"
+      >
+        ⚡ Events
+      </button>
+      <button 
+        class="tab-btn" 
+        :class="{ active: activeTab === 'quests' }" 
+        @click="activeTab = 'quests'"
+      >
+        🏆 Quests
+      </button>
+    </div>
+
+    <!-- ===== EVENTS TAB ===== -->
+    <template v-if="activeTab === 'events'">
     <!-- Formulár pre nový event -->
     <div class="new-event-form">
       <h3>➕ Create new event</h3>
@@ -876,6 +1065,162 @@ const getTriggerDescription = (event) => {
         </template>
       </div>
     </div>
+    </template>
+
+    <!-- ===== QUESTS TAB ===== -->
+    <template v-if="activeTab === 'quests'">
+      <div class="new-event-form">
+        <h3>➕ Create new quest</h3>
+
+        <div class="form-row">
+          <label>Quest name</label>
+          <input v-model="newQuestName" type="text" placeholder="E.g. Build 5 houses" class="form-input" />
+        </div>
+
+        <div class="form-row">
+          <label>Description</label>
+          <textarea v-model="newQuestDescription" class="form-textarea" rows="2" placeholder="Quest description..."></textarea>
+        </div>
+
+        <!-- Building goal -->
+        <div class="trigger-config">
+          <h4>🏗️ Building goal (optional)</h4>
+          <div class="form-row">
+            <label>Building</label>
+            <select v-model="newQuestBuildingId" class="form-select">
+              <option value="">-- None --</option>
+              <option v-for="b in allBuildings" :key="b.id" :value="b.id">
+                {{ b.buildingData?.buildingName || 'Unnamed' }}
+              </option>
+            </select>
+          </div>
+          <div v-if="newQuestBuildingId" class="form-row">
+            <label>Count</label>
+            <input v-model.number="newQuestBuildingCount" type="number" min="1" class="form-input small" />
+          </div>
+        </div>
+
+        <!-- Resource goals -->
+        <div class="trigger-config">
+          <h4>📦 Resource goals (optional)</h4>
+          <div v-if="newQuestResources.length > 0" class="actions-list-mini">
+            <div v-for="(r, ri) in newQuestResources" :key="ri" class="action-item-mini">
+              <span class="action-badge">📦 {{ r.resourceName }}</span>
+              <span class="action-summary">×{{ r.amount }}</span>
+              <button @click="removeQuestResource(ri)" class="btn-remove-action" title="Remove">✕</button>
+            </div>
+          </div>
+          <div class="quest-res-add-row">
+            <select v-model="newQuestResResourceId" class="form-select">
+              <option value="" disabled>-- Select resource --</option>
+              <option v-for="r in allResources" :key="r.id" :value="r.id">{{ r.name }}</option>
+            </select>
+            <input v-model.number="newQuestResAmount" type="number" min="1" class="form-input small" />
+            <button @click="addQuestResource" class="btn-add-action" type="button" :disabled="!newQuestResResourceId">
+              ➕ Add
+            </button>
+          </div>
+        </div>
+
+        <button @click="addQuest" class="btn-add" :disabled="!newQuestName.trim()">
+          ✅ Add Quest
+        </button>
+      </div>
+
+      <div class="events-list">
+        <h3>📋 Existing quests ({{ quests.length }})</h3>
+        <div v-if="quests.length === 0" class="empty-state">
+          <p>No quests. Create your first quest above.</p>
+        </div>
+        <div
+          v-for="(quest, index) in quests"
+          :key="quest.id"
+          class="event-item"
+          :class="{ editing: editingQuestIndex === index, 'drag-over': questDragOverIndex === index && questDraggedIndex !== index }"
+          draggable="true"
+          @dragstart="onQuestDragStart($event, index)"
+          @dragover="onQuestDragOver($event, index)"
+          @dragleave="onQuestDragLeave"
+          @drop="onQuestDrop($event, index)"
+          @dragend="onQuestDragEnd"
+        >
+          <template v-if="editingQuestIndex !== index">
+            <div class="event-header">
+              <div class="event-name">
+                <span class="drag-handle" title="Drag to reorder">☰</span>
+                🏆 {{ quest.name }}
+              </div>
+              <div class="event-actions">
+                <button @click="startEditQuest(index)" class="action-btn" title="Edit">✏️</button>
+                <button @click="removeQuest(index)" class="action-btn delete" title="Delete">🗑️</button>
+              </div>
+            </div>
+            <div v-if="quest.description" class="event-description">{{ quest.description }}</div>
+            <div v-if="getQuestSummary(quest)" class="event-details">
+              <span class="event-trigger-desc">{{ getQuestSummary(quest) }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="edit-form">
+              <div class="form-row">
+                <label>Name</label>
+                <input v-model="editingQuest.name" type="text" class="form-input" />
+              </div>
+              <div class="form-row">
+                <label>Description</label>
+                <textarea v-model="editingQuest.description" class="form-textarea" rows="2" placeholder="Quest description..."></textarea>
+              </div>
+
+              <!-- Edit building goal -->
+              <div class="trigger-config">
+                <h4>🏗️ Building goal</h4>
+                <div class="form-row">
+                  <label>Building</label>
+                  <select v-model="editingQuest.buildingId" class="form-select">
+                    <option value="">-- None --</option>
+                    <option :value="null">-- None --</option>
+                    <option v-for="b in allBuildings" :key="b.id" :value="b.id">
+                      {{ b.buildingData?.buildingName || 'Unnamed' }}
+                    </option>
+                  </select>
+                </div>
+                <div v-if="editingQuest.buildingId" class="form-row">
+                  <label>Count</label>
+                  <input v-model.number="editingQuest.buildingCount" type="number" min="1" class="form-input small" />
+                </div>
+              </div>
+
+              <!-- Edit resource goals -->
+              <div class="trigger-config">
+                <h4>📦 Resource goals</h4>
+                <div v-if="editingQuest.resources && editingQuest.resources.length > 0" class="actions-list-mini">
+                  <div v-for="(r, ri) in editingQuest.resources" :key="ri" class="action-item-mini">
+                    <span class="action-badge">📦 {{ r.resourceName }}</span>
+                    <span class="action-summary">×{{ r.amount }}</span>
+                    <button @click="removeEditQuestResource(ri)" class="btn-remove-action" title="Remove">✕</button>
+                  </div>
+                </div>
+                <div class="quest-res-add-row">
+                  <select v-model="editQuestResResourceId" class="form-select">
+                    <option value="" disabled>-- Select resource --</option>
+                    <option v-for="r in allResources" :key="r.id" :value="r.id">{{ r.name }}</option>
+                  </select>
+                  <input v-model.number="editQuestResAmount" type="number" min="1" class="form-input small" />
+                  <button @click="addEditQuestResource" class="btn-add-action" type="button" :disabled="!editQuestResResourceId">
+                    ➕ Add
+                  </button>
+                </div>
+              </div>
+
+              <div class="edit-actions">
+                <button @click="saveEditQuest" class="btn-save-edit">💾 Save</button>
+                <button @click="cancelEditQuest" class="btn-cancel-edit">❌ Cancel</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -884,6 +1229,36 @@ const getTriggerDescription = (event) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #9ca3af;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.tab-btn.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
 }
 
 .new-event-form {
@@ -1439,5 +1814,47 @@ const getTriggerDescription = (event) => {
   color: #92400e;
   border-radius: 6px;
   white-space: nowrap;
+}
+
+/* Quest resource add row */
+.quest-res-add-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+}
+
+.quest-res-add-row .form-select {
+  flex: 1;
+}
+
+.quest-res-add-row .form-input.small {
+  width: 80px;
+}
+
+.quest-res-add-row .btn-add-action {
+  width: auto;
+  white-space: nowrap;
+  padding: 0.45rem 0.75rem;
+}
+
+/* Drag & drop */
+.drag-handle {
+  cursor: grab;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-right: 0.3rem;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.event-item.dragging {
+  opacity: 0.4;
+}
+
+.event-item.drag-over {
+  border-top: 2px solid #667eea;
 }
 </style>

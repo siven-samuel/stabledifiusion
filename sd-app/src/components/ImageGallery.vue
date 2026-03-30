@@ -57,6 +57,14 @@ const props = defineProps({
   advisorSpriteUrl: {
     type: String,
     default: import.meta.env.BASE_URL + 'templates/all/advisor3.png'
+  },
+  roadCostResourceId: {
+    type: String,
+    default: ''
+  },
+  roadCostAmount: {
+    type: Number,
+    default: 1
   }
 })
 
@@ -80,7 +88,8 @@ const emit = defineEmits([
   'structure-sprite-changed',
   'car-sprite-changed',
   'person-sprite-changed',
-  'advisor-sprite-changed'
+  'advisor-sprite-changed',
+  'road-cost-changed'
 ])
 
 const selectedImage = ref(null)
@@ -168,6 +177,10 @@ const resetGalleryDrag = () => {
 }
 const spawnCarsEnabled = ref(props.carSpawnEnabled) // Či pridať autá pri kliknutí na road tile
 const carsPerPlacement = ref(props.carSpawnCount) // Počet áut na jedno umiestnenie road tile
+
+// Road cost settings
+const roadCostResourceId = ref(props.roadCostResourceId)
+const roadCostAmount = ref(props.roadCostAmount)
 
 // Building data
 const isBuilding = ref(false)
@@ -389,6 +402,12 @@ watch(() => props.personSpriteUrl, (newUrl) => {
 watch(() => props.advisorSpriteUrl, (newUrl) => {
   if (newUrl) localAdvisorSpriteUrl.value = newUrl
 })
+watch(() => props.roadCostResourceId, (newVal) => {
+  roadCostResourceId.value = newVal || ''
+})
+watch(() => props.roadCostAmount, (newVal) => {
+  if (newVal !== undefined) roadCostAmount.value = newVal
+})
 
 // Upload handler pre structure sprites
 const handleStructureSpriteUpload = (event, type) => {
@@ -503,6 +522,16 @@ watch(personsPerPlacement, () => emitPersonSettings())
 
 watch(spawnCarsEnabled, () => emitCarSettings(), { immediate: true })
 watch(carsPerPlacement, () => emitCarSettings())
+
+const emitRoadCostSettings = () => {
+  emit('road-cost-changed', {
+    resourceId: roadCostResourceId.value,
+    amount: roadCostAmount.value
+  })
+}
+
+watch(roadCostResourceId, () => emitRoadCostSettings())
+watch(roadCostAmount, () => emitRoadCostSettings())
 
 // Funkcia na uloženie building data
 const saveBuildingData = () => {
@@ -1075,6 +1104,32 @@ defineExpose({
         max="500"
         step="1"
         v-model.number="carsPerPlacement"
+      />
+    </div>
+  </div>
+
+  <!-- Road cost controls -->
+  <div v-if="activeGalleryTab === 'roads'" class="road-cost-controls">
+    <label class="road-cost-label">🪨 Cost per road tile:</label>
+    <div class="resource-input-group">
+      <select v-model="roadCostResourceId" class="resource-select">
+        <option value="">-- None --</option>
+        <option 
+          v-for="resource in resources" 
+          :key="resource.id" 
+          :value="resource.id"
+        >
+          {{ resource.name }}
+        </option>
+      </select>
+      <input 
+        type="number" 
+        v-model.number="roadCostAmount" 
+        min="1" 
+        max="9999" 
+        step="1" 
+        class="amount-input"
+        :disabled="!roadCostResourceId"
       />
     </div>
   </div>
@@ -2212,6 +2267,21 @@ h2 {
   border: 1px solid #d0d7de;
   border-radius: 6px;
   font-weight: 600;
+}
+
+/* Road cost controls */
+.road-cost-controls {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e1e4e8;
+  background: #f8f9fa;
+}
+
+.road-cost-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #333;
+  margin-bottom: 0.3rem;
 }
 
 /* Car sprites section */

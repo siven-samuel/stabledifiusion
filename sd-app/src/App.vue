@@ -51,6 +51,8 @@ const carSprite1Url = ref(BASE_URL + 'templates/roads/sprites/car-dawn-top-right
 const carSprite2Url = ref(BASE_URL + 'templates/roads/sprites/car-down-top-left.png') // Car sprite 2 URL
 const personSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/persons-mini-astro.gif') // Person sprite URL
 const advisorSpriteUrl = ref(BASE_URL + 'templates/all/advisor3.png') // Advisor sprite URL
+const roadCostResourceId = ref('') // Resource ID pre cost roads
+const roadCostAmount = ref(1) // Amount per road tile
 const viewMode = ref('editor') // 'editor' alebo 'gameplay'
 const canvasImagesMap = ref({}) // Mapa budov na canvase (pre vypočítanie použitých resources)
 const showInsufficientResourcesModal = ref(false)
@@ -343,7 +345,40 @@ const handleAdvisorSpriteChanged = ({ url }) => {
   console.log(`🧑‍🚀 App.vue: Advisor sprite updated`)
 }
 
+const handleRoadCostChanged = ({ resourceId, amount }) => {
+  roadCostResourceId.value = resourceId || ''
+  roadCostAmount.value = amount || 1
+}
+
 const handleRoadPlaced = ({ path }) => {
+  // Check road cost resources if configured
+  if (roadCostResourceId.value) {
+    const totalCost = path.length * roadCostAmount.value
+    const resource = resources.value.find(r => r.id === roadCostResourceId.value)
+    const available = resource ? resource.amount : 0
+    
+    if (!resource || available < totalCost) {
+      // Calculate max affordable tiles
+      const maxTiles = resource ? Math.floor(available / roadCostAmount.value) : 0
+      insufficientResourcesData.value = {
+        buildingName: `Road (${path.length} tiles)`,
+        missingBuildResources: [{
+          name: resource ? resource.name : 'Unknown resource',
+          needed: totalCost,
+          available: available,
+          isWorkResource: false
+        }],
+        missingOperationalResources: []
+      }
+      showInsufficientResourcesModal.value = true
+      return
+    }
+    
+    // Deduct resources
+    resource.amount -= totalCost
+    console.log(`🪨 Road cost: -${totalCost} ${resource.name} (${path.length} tiles × ${roadCostAmount.value}), remaining: ${resource.amount}`)
+  }
+  
   buildRoad(canvasRef.value, roadTiles.value, path)
 }
 
@@ -659,6 +694,10 @@ const handleLoadProject = (projectData) => {
     : loadedRoadSpriteUrl
   console.log('🛣️ App.vue: Road sprite URL načítané:', spriteInfo)
   console.log('🎨 App.vue: Road opacity načítaná:', loadedRoadOpacity + '%')
+  
+  // Obnov road cost
+  roadCostResourceId.value = projectData.roadCostResourceId || ''
+  roadCostAmount.value = projectData.roadCostAmount || 1
   
   // Obnov structure sprites
   constructSpriteUrl.value = loadedConstructSpriteUrl
@@ -1229,6 +1268,8 @@ const handleCanvasUpdated = () => {
         :carSprite2Url="carSprite2Url"
         :personSpriteUrl="personSpriteUrl"
         :advisorSpriteUrl="advisorSpriteUrl"
+        :roadCostResourceId="roadCostResourceId"
+        :roadCostAmount="roadCostAmount"
         :events="gameEvents"
         :quests="gameQuests"
         @load-project="handleLoadProject"
@@ -1322,6 +1363,8 @@ const handleCanvasUpdated = () => {
         :carSprite2Url="carSprite2Url"
         :personSpriteUrl="personSpriteUrl"
         :advisorSpriteUrl="advisorSpriteUrl"
+        :roadCostResourceId="roadCostResourceId"
+        :roadCostAmount="roadCostAmount"
         @delete="handleDelete" 
         @select="handleSelectImage"
         @place-on-board="handlePlaceOnBoard"
@@ -1342,6 +1385,7 @@ const handleCanvasUpdated = () => {
         @car-sprite-changed="handleCarSpriteChanged"
         @person-sprite-changed="handlePersonSpriteChanged"
         @advisor-sprite-changed="handleAdvisorSpriteChanged"
+        @road-cost-changed="handleRoadCostChanged"
       />
     </div>
     

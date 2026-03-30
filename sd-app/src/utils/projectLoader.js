@@ -309,6 +309,8 @@ export async function loadProject(projectData, canvasRef, onProgress = null) {
       workforce: projectData.workforce || [],
       roadSpriteUrl,
       roadOpacity,
+      roadCostResourceId: projectData.roadCostResourceId || '',
+      roadCostAmount: projectData.roadCostAmount || 1,
       constructSpriteUrl: projectData.constructSpriteUrl || null,
       tempBuildingSpriteUrl: projectData.tempBuildingSpriteUrl || null,
       carSprite1Url: projectData.carSprite1Url || null,

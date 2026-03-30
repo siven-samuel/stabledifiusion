@@ -87,6 +87,14 @@ const props = defineProps({
     type: String,
     default: import.meta.env.BASE_URL + 'templates/all/advisor3.png'
   },
+  roadCostResourceId: {
+    type: String,
+    default: ''
+  },
+  roadCostAmount: {
+    type: Number,
+    default: 1
+  },
   allocatedResources: {
     type: Object,
     default: () => ({})
@@ -360,6 +368,8 @@ const saveProject = () => {
       gameTime: props.gameTime || 0,
       roadSpriteUrl: props.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
+      roadCostResourceId: props.roadCostResourceId || '',
+      roadCostAmount: props.roadCostAmount || 1,
       constructSpriteUrl: props.constructSpriteUrl || (BASE_URL + 'templates/cubes1/contruct.png'),
       tempBuildingSpriteUrl: props.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'),
       carSprite1Url: props.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png'),
@@ -541,6 +551,8 @@ const saveGameplayProject = async () => {
       gameTime: props.gameTime || 0,
       roadSpriteUrl: props.roadSpriteUrl || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
       roadOpacity: props.roadOpacity || 100,
+      roadCostResourceId: props.roadCostResourceId || '',
+      roadCostAmount: props.roadCostAmount || 1,
       constructSpriteUrl: props.constructSpriteUrl || (BASE_URL + 'templates/cubes1/contruct.png'),
       tempBuildingSpriteUrl: props.tempBuildingSpriteUrl || (BASE_URL + 'templates/cubes1/0.png'),
       carSprite1Url: props.carSprite1Url || (BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png'),

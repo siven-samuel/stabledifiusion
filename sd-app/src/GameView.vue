@@ -62,6 +62,8 @@ const resources = ref([])
 const workforce = ref([])
 const roadSpriteUrl = ref(BASE_URL + 'templates/roads/sprites/pastroad.png')
 const roadOpacity = ref(100)
+const roadCostResourceId = ref('') // Resource ID pre cost roads
+const roadCostAmount = ref(1) // Amount per road tile
 const constructSpriteUrl = ref(BASE_URL + 'templates/cubes1/contruct.png')
 const tempBuildingSpriteUrl = ref(BASE_URL + 'templates/cubes1/0.png')
 const carSprite1Url = ref(BASE_URL + 'templates/roads/sprites/car-dawn-top-right.png')
@@ -765,6 +767,8 @@ const buildSaveData = () => {
     gameTime: gameTime.value || 0,
     roadSpriteUrl: roadSpriteUrl.value || (BASE_URL + 'templates/roads/sprites/pastroad.png'),
     roadOpacity: roadOpacity.value || 100,
+    roadCostResourceId: roadCostResourceId.value || '',
+    roadCostAmount: roadCostAmount.value || 1,
     constructSpriteUrl: constructSpriteUrl.value,
     tempBuildingSpriteUrl: tempBuildingSpriteUrl.value,
     carSprite1Url: carSprite1Url.value,
@@ -1065,6 +1069,32 @@ const handleRoadOpacityChanged = (newOpacity) => {
 }
 
 const handleRoadPlaced = ({ path }) => {
+  // Check road cost resources if configured
+  if (roadCostResourceId.value) {
+    const totalCost = path.length * roadCostAmount.value
+    const resource = resources.value.find(r => r.id === roadCostResourceId.value)
+    const available = resource ? resource.amount : 0
+    
+    if (!resource || available < totalCost) {
+      insufficientResourcesData.value = {
+        buildingName: `Road (${path.length} tiles)`,
+        missingBuildResources: [{
+          name: resource ? resource.name : 'Unknown resource',
+          needed: totalCost,
+          available: available,
+          isWorkResource: false
+        }],
+        missingOperationalResources: []
+      }
+      showInsufficientResourcesModal.value = true
+      return
+    }
+    
+    // Deduct resources
+    resource.amount -= totalCost
+    console.log(`🪨 Road cost: -${totalCost} ${resource.name} (${path.length} tiles × ${roadCostAmount.value}), remaining: ${resource.amount}`)
+  }
+  
   buildRoad(canvasRef.value, roadTiles.value, path)
 }
 
@@ -1336,6 +1366,8 @@ const handleLoadProject = async (projectData) => {
     }
     roadSpriteUrl.value = loadedData.roadSpriteUrl
     roadOpacity.value = loadedData.roadOpacity
+    roadCostResourceId.value = loadedData.roadCostResourceId || ''
+    roadCostAmount.value = loadedData.roadCostAmount || 1
     gameTime.value = loadedData.gameTime || 0
     
     // Apply construct/temp building sprites from JSON (base64)
@@ -2878,6 +2910,8 @@ onUnmounted(() => {
             :allocatedResources="allocatedResources"
             :roadSpriteUrl="roadSpriteUrl"
             :roadOpacity="roadOpacity"
+            :roadCostResourceId="roadCostResourceId"
+            :roadCostAmount="roadCostAmount"
             :buildingProductionStates="buildingProductionStates"
             :gameTime="gameTime"
             :events="gameEvents"

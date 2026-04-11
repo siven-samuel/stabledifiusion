@@ -4,6 +4,7 @@ import App from '../App.vue'
 import GameView from '../GameView.vue'
 import VersionPage from '../VersionPage.vue'
 import ScoreBoard from '../ScoreBoard.vue'
+import LocalModel from '../LocalModel.vue'
 
 const routes = [
   {
@@ -30,6 +31,11 @@ const routes = [
     path: '/scoreboard',
     name: 'Scoreboard',
     component: ScoreBoard
+  },
+  {
+    path: '/local-model',
+    name: 'LocalModel',
+    component: LocalModel
   }
 ]
 

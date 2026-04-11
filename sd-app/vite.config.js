@@ -8,4 +8,8 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(new Date().toISOString()),
   },
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
+  },
+  assetsInclude: ['**/*.onnx'],
 })

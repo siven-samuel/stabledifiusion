@@ -10,8 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.0.1",
     "firebase": "^12.11.0",
     "gifuct-js": "^2.1.2",
+    "onnxruntime-web": "^1.25.0-dev.20260327-722743c0e2",
+    "ort-web-sd": "npm:onnxruntime-web@^1.17.3",
     "phaser": "^3.90.0",
     "rollup": "^4.59.0",
     "vue": "^3.5.24",
@@ -22,6 +25,6 @@
     "vite": "^7.2.2"
   },
   "optionalDependencies": {
-    "@rollup/rollup-win32-x64-msvc": "^4.59.0"
+    "@rollup/rollup-win32-x64-msvc": "^4.60.1"
   }
 }

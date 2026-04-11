@@ -54,6 +54,10 @@ const goPlay = () => {
 const goLoadLastGame = () => {
   router.push({ path: '/gameplay', query: { restore: '1' } })
 }
+
+const goLocalModel = () => {
+  router.push('/local-model')
+}
 </script>
 
 <template>
@@ -85,6 +89,12 @@ const goLoadLastGame = () => {
           <span class="btn-icon">🎨</span>
           <span class="btn-label">Editor</span>
           <span class="btn-desc">Open the building editor</span>
+        </button>
+
+        <button class="home-btn local-btn" @click="goLocalModel">
+          <span class="btn-icon">🧠</span>
+          <span class="btn-label">Local Model</span>
+          <span class="btn-desc">Run Stable Diffusion in browser via WebGPU</span>
         </button>
       </div>
     </div>
@@ -160,6 +170,9 @@ const goLoadLastGame = () => {
 
 .load-btn { border-color: rgba(233, 30, 99, 0.4); }
 .load-btn:hover { background: rgba(233, 30, 99, 0.2); border-color: rgba(233, 30, 99, 0.8); }
+
+.local-btn { border-color: rgba(0, 188, 212, 0.4); }
+.local-btn:hover { background: rgba(0, 188, 212, 0.2); border-color: rgba(0, 188, 212, 0.8); }
 
 .btn-icon {
   font-size: 3rem;
